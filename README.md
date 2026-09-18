@@ -3,7 +3,7 @@
 A real-time collaborative workspace for teams: shared documents (Yjs), workspace chat,
 @mentions, notifications, comments and version history.
 
-> **Status:** Phase 2 - authentication complete. Features are being built one phase at a time.
+> **Status:** Phase 3 - workspaces, roles and invitations complete. Features are being built one phase at a time.
 
 ## Tech stack
 
@@ -21,7 +21,7 @@ A real-time collaborative workspace for teams: shared documents (Yjs), workspace
 server/
 ├── index.js          entry point: connects the database, starts the server
 ├── app.js            builds the Express app (middlewares + routes)
-├── config/           settings and external connections (env, database, auth cookie)
+├── config/           settings and external connections (env, database, auth cookie, roles and permissions)
 ├── model/            Mongoose models
 ├── validators/       Zod schemas that check what the client sends
 ├── controllers/      the logic of every route
@@ -87,14 +87,45 @@ All endpoints live under `/api`. Every response is JSON with a `message`, plus e
 { "message": "Email is not valid", "errors": { "email": "Email is not valid" } }
 ```
 
-| Endpoint                | Login needed | Description                                         |
-| ----------------------- | ------------ | --------------------------------------------------- |
-| `GET /api/health`       | no           | 200 when the API and MongoDB are up, 503 otherwise  |
-| `POST /api/user/signup` | no           | Create an account and log in (201)                  |
-| `POST /api/user/login`  | no           | Log in; sets the HTTP-only login cookie             |
-| `POST /api/user/logout` | no           | Clear the login cookie                              |
-| `GET /api/user/profile` | yes          | The current user, or 401                            |
-| `PATCH /api/user/profile` | yes        | Update the name                                     |
+| Endpoint                                   | Login needed | Description                                          |
+| ------------------------------------------ | ------------ | ---------------------------------------------------- |
+| `GET /api/health`                          | no           | 200 when the API and MongoDB are up, 503 otherwise   |
+| `POST /api/user/signup`                    | no           | Create an account and log in (201)                   |
+| `POST /api/user/login`                     | no           | Log in; sets the HTTP-only login cookie              |
+| `POST /api/user/logout`                    | no           | Clear the login cookie                               |
+| `GET /api/user/profile`                    | yes          | The current user, or 401                             |
+| `PATCH /api/user/profile`                  | yes          | Update the name                                      |
+| `POST /api/workspace`                      | yes          | Create a workspace; you become its OWNER             |
+| `GET /api/workspace`                       | yes          | Your workspaces, each with your role                 |
+| `GET /api/workspace/:id`                   | member       | The workspace, your role and what you may do         |
+| `PATCH /api/workspace/:id`                 | OWNER, ADMIN | Rename / change the description                      |
+| `DELETE /api/workspace/:id`                | OWNER        | Delete the workspace                                 |
+| `GET /api/workspace/:id/members`           | member       | The people in the workspace                          |
+| `PATCH /api/workspace/:id/members/:userId` | OWNER, ADMIN | Change someone's role (below your own rank)          |
+| `DELETE /api/workspace/:id/members/:userId`| OWNER, ADMIN | Remove someone (below your own rank)                 |
+| `POST /api/workspace/:id/leave`            | member       | Leave (the OWNER cannot)                             |
+| `POST /api/workspace/:id/invites`          | OWNER, ADMIN | Invite an email to a role below your own             |
+| `GET /api/workspace/:id/invites`           | OWNER, ADMIN | Pending invitations of the workspace                 |
+| `DELETE /api/workspace/:id/invites/:inviteId` | OWNER, ADMIN | Cancel an invitation                              |
+| `GET /api/invite`                          | yes          | Invitations addressed to your email                  |
+| `POST /api/invite/:id/accept`, `/decline`  | yes          | Answer an invitation addressed to you                |
+
+### Roles and permissions
+
+Every workspace route first checks that you are a member (a non-member gets `404`, so ids cannot be probed), then that your role may do the action (`403`).
+
+| Action                          | OWNER | ADMIN | MEMBER | VIEWER |
+| ------------------------------- | :---: | :---: | :----: | :----: |
+| View the workspace and members  |  yes  |  yes  |  yes   |  yes   |
+| Rename the workspace            |  yes  |  yes  |   -    |   -    |
+| Delete the workspace            |  yes  |   -   |   -    |   -    |
+| Invite, cancel invitations      |  yes  |  yes  |   -    |   -    |
+| Change roles, remove members    |  yes  |  yes  |   -    |   -    |
+| Leave the workspace             |   -   |  yes  |  yes   |  yes   |
+
+One more rule sits on top: **you can only manage people who rank below you**, and only give roles below your own.
+So an ADMIN cannot change or remove another ADMIN or the OWNER, and nobody can make someone OWNER.
+The matrix lives in one file, `server/config/permissions.js`.
 
 ### Authentication and security
 
