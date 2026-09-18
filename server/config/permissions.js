@@ -40,3 +40,13 @@ export const can = (role, permission)=>{
 export const outranks = (roleA, roleB)=>{
     return roleRank[roleA] > roleRank[roleB];
 }
+
+// Everything a role may do, and the roles it may hand out. The API sends these to the frontend so the
+// screen can hide buttons the user could not use anyway. Only a convenience : the backend checks again on every request.
+export const permissionsOf = (role)=>{
+    return Object.keys(permissions).filter((permission)=> can(role, permission));
+}
+
+export const rolesBelow = (role)=>{
+    return assignableRoles.filter((assignable)=> outranks(role, assignable));
+}

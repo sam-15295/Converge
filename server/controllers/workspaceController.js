@@ -1,6 +1,7 @@
 import Workspace from "../model/workspaceSchema.js";
 import WorkspaceMember from "../model/workspaceMemberSchema.js";
 import WorkspaceInvite from "../model/workspaceInviteSchema.js";
+import {permissionsOf, rolesBelow} from "../config/permissions.js";
 import {createWorkspaceSchema, updateWorkspaceSchema} from "../validators/workspaceValidator.js";
 import formatZodErrors from "../validators/formatZodErrors.js";
 
@@ -103,7 +104,9 @@ export const getWorkspace = async (req, res)=>{
         res.status(200).json({
             message : "Your workspace",
             workspace : formatWorkspace(workspace),
-            role : req.membership.role
+            role : req.membership.role,
+            permissions : permissionsOf(req.membership.role),
+            assignableRoles : rolesBelow(req.membership.role)
         });
     }
     catch(err){

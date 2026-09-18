@@ -1,17 +1,24 @@
 import mongoose from "mongoose";
 import WorkspaceMember from "../model/workspaceMemberSchema.js";
-import {roles, outranks} from "../config/permissions.js";
+import {roles, outranks, can} from "../config/permissions.js";
 import {changeRoleSchema} from "../validators/workspaceValidator.js";
 import formatZodErrors from "../validators/formatZodErrors.js";
 
-// only these fields are ever sent to the client
-const formatMember = (membership)=>{
+// only these fields are ever sent to the client.
+// canChangeRole / canRemove tell the screen whether to show the buttons for this person (for the user who asks).
+const formatMember = (membership, myMembership)=>{
+    const myRole = myMembership.role;
+    const isMe = String(membership.userId._id) === String(myMembership.userId);
+    const belowMe = outranks(myRole, membership.role);
+
     return {
         userId : membership.userId._id,
         name : membership.userId.name,
         email : membership.userId.email,
         role : membership.role,
-        joinedAt : membership.createdAt
+        joinedAt : membership.createdAt,
+        canChangeRole : !isMe && belowMe && can(myRole, "member:changeRole"),
+        canRemove : !isMe && belowMe && can(myRole, "member:remove")
     };
 }
 
@@ -43,7 +50,7 @@ export const listMembers = async (req, res)=>{
         // strongest role first (roles is ordered OWNER, ADMIN, MEMBER, VIEWER), then the ones who joined earlier
         const members = memberships
         .filter((membership)=> membership.userId)
-        .map(formatMember)
+        .map((membership)=> formatMember(membership, req.membership))
         .sort((a, b)=> roles.indexOf(a.role) - roles.indexOf(b.role));
 
         res.status(200).json({
