@@ -1,6 +1,6 @@
 import * as z from "zod";
 
-const emailSchema = z.preprocess(
+export const emailSchema = z.preprocess(
     (val)=>{
         return typeof val == "string" ? val.trim().toLowerCase() : ""
     },

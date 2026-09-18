@@ -1,5 +1,6 @@
 import Workspace from "../model/workspaceSchema.js";
 import WorkspaceMember from "../model/workspaceMemberSchema.js";
+import WorkspaceInvite from "../model/workspaceInviteSchema.js";
 import {createWorkspaceSchema, updateWorkspaceSchema} from "../validators/workspaceValidator.js";
 import formatZodErrors from "../validators/formatZodErrors.js";
 
@@ -164,6 +165,7 @@ export const deleteWorkspace = async (req, res)=>{
         // (workspaceMemberMiddleware finds no membership), even if a later step fails.
         // Later phases add their own data here (documents, messages, comments...).
         await WorkspaceMember.deleteMany({workspaceId});
+        await WorkspaceInvite.deleteMany({workspaceId});
         await Workspace.deleteOne({_id : workspaceId});
 
         res.status(200).json({

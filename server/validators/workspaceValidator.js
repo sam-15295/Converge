@@ -1,5 +1,6 @@
 import * as z from "zod";
 import {assignableRoles} from "../config/permissions.js";
+import {emailSchema} from "./userValidator.js";
 
 const nameSchema = z.string()
 .trim()
@@ -22,5 +23,11 @@ export const updateWorkspaceSchema = z.object({
 
 // OWNER is not in this list on purpose : the owner is the creator, and ownership cannot be handed out
 export const changeRoleSchema = z.object({
+    role : z.enum(assignableRoles, {error : "Role must be ADMIN, MEMBER or VIEWER"})
+});
+
+// OWNER cannot be invited either. The email is trimmed and lowercased by emailSchema, the same way as at signup.
+export const inviteSchema = z.object({
+    email : emailSchema,
     role : z.enum(assignableRoles, {error : "Role must be ADMIN, MEMBER or VIEWER"})
 });
