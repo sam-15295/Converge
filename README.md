@@ -31,7 +31,8 @@ server/
 client/src/
 ├── pages/            one component per screen
 ├── components/       small reusable UI pieces
-├── features/         feature logic (auth, health)
+├── features/         feature logic (auth, health, workspace)
+├── hooks/            reusable React hooks
 ├── services/         the API client
 └── utils/            helper functions
 ```
