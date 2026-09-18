@@ -3,6 +3,7 @@ import AuthProvider from "./features/auth/AuthProvider";
 import ProtectedRoute from "./features/auth/ProtectedRoute";
 import PublicOnlyRoute from "./features/auth/PublicOnlyRoute";
 import DashboardPage from "./pages/DashboardPage";
+import WorkspacePage from "./pages/WorkspacePage";
 import LoginPage from "./pages/LoginPage";
 import NotFoundPage from "./pages/NotFoundPage";
 import SignupPage from "./pages/SignupPage";
@@ -22,6 +23,7 @@ const App = ()=>{
                     {/* Only for logged-in users */}
                     <Route element={<ProtectedRoute />}>
                         <Route path="/" element={<DashboardPage />} />
+                        <Route path="/workspace/:workspaceId" element={<WorkspacePage />} />
                     </Route>
 
                     {/* Anyone */}
