@@ -1,5 +1,6 @@
 import express from "express";
 import {createWorkspace, getMyWorkspaces, getWorkspace, updateWorkspace, deleteWorkspace} from "../controllers/workspaceController.js";
+import {listMembers, changeMemberRole, removeMember, leaveWorkspace} from "../controllers/workspaceMemberController.js";
 import authUserMiddleware from "../middlewares/authUserMiddleware.js";
 import workspaceMemberMiddleware from "../middlewares/workspaceMemberMiddleware.js";
 import requirePermissionMiddleware from "../middlewares/requirePermissionMiddleware.js";
@@ -19,5 +20,12 @@ workspaceRouter.use("/:workspaceId", workspaceMemberMiddleware);
 workspaceRouter.get("/:workspaceId", requirePermissionMiddleware("workspace:view"), getWorkspace);
 workspaceRouter.patch("/:workspaceId", requirePermissionMiddleware("workspace:update"), updateWorkspace);
 workspaceRouter.delete("/:workspaceId", requirePermissionMiddleware("workspace:delete"), deleteWorkspace);
+
+workspaceRouter.get("/:workspaceId/members", requirePermissionMiddleware("member:view"), listMembers);
+workspaceRouter.patch("/:workspaceId/members/:userId", requirePermissionMiddleware("member:changeRole"), changeMemberRole);
+workspaceRouter.delete("/:workspaceId/members/:userId", requirePermissionMiddleware("member:remove"), removeMember);
+
+// leaving needs no special permission : every member may leave (except the owner, see the controller)
+workspaceRouter.post("/:workspaceId/leave", leaveWorkspace);
 
 export default workspaceRouter;
