@@ -10,6 +10,14 @@ const envSchema = z.object({
     PORT : z.coerce.number().int().positive().default(5000),
     MONGODB_URI : z.string().min(1, "MONGODB_URI is required"),
     CLIENT_URL : z.string().url().default("http://localhost:5173"),
+
+    // no default for the secret, a guessable default would let anyone forge a login
+    JWT_SECRET : z.string().min(32, "JWT_SECRET must be at least 32 characters"),
+    JWT_EXPIRES_IN_DAYS : z.coerce.number().int().positive().default(7),
+    BCRYPT_ROUNDS : z.coerce.number().int().min(4).max(15).default(12),
+
+    // failed login/signup attempts allowed per IP in 15 minutes
+    AUTH_RATE_LIMIT_MAX : z.coerce.number().int().positive().default(10)
 });
 
 const parsed = envSchema.safeParse(process.env);
