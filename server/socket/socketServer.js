@@ -2,7 +2,9 @@ import {Server} from "socket.io";
 import env from "../config/env.js";
 import socketAuthMiddleware from "./socketAuthMiddleware.js";
 import attachDocumentHandlers from "./documentSocketHandlers.js";
+import attachChatHandlers from "./chatSocketHandlers.js";
 import {flushAllRooms, resetRooms} from "../service/docRoomService.js";
+import {resetPresence} from "../service/presenceService.js";
 
 const allowedOrigin = new URL(env.CLIENT_URL).origin;
 
@@ -30,6 +32,7 @@ const createSocketServer = (httpServer)=>{
 
     io.use(socketAuthMiddleware);
     io.detachDocumentHandlers = attachDocumentHandlers(io);
+    io.detachChatHandlers = attachChatHandlers(io);
 
     return io;
 }
@@ -37,10 +40,12 @@ const createSocketServer = (httpServer)=>{
 // Stops taking connections, saves every open document, and closes everything
 export const closeSocketServer = async (io)=>{
     io.detachDocumentHandlers?.();
+    io.detachChatHandlers?.();
     await flushAllRooms();
     io.disconnectSockets(true);     // do not wait for a client that is stuck
     await new Promise((resolve)=> io.close(resolve));
     await resetRooms();
+    resetPresence();
 }
 
 export default createSocketServer;
