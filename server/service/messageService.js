@@ -22,6 +22,7 @@ export const formatMessage = (message)=>{
         id : String(message._id),
         sender : {id : String(sender?._id ?? sender), name : sender?.name},
         content : message.content,
+        mentions : (message.mentions ?? []).map((mention)=> ({userId : String(mention.userId), displayName : mention.displayName})),
         parentMessageId : asText(message.parentMessageId),
         replyCount : message.replyCount,
         lastReplyAt : asIsoDate(message.lastReplyAt),

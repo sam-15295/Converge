@@ -29,6 +29,25 @@ const messageSchema = new mongoose.Schema({
         default : null
     },
 
+    // The people this message mentions, chosen from the workspace's members : [{userId, displayName}].
+    // The displayName is a copy of the person's name AT THAT TIME (it is what the text says: "@Rahul"), so an old message keeps
+    // reading correctly even if the person renames themselves. Checked by services/mentionService.js before saving.
+    mentions : {
+        type : [{
+            _id : false,
+            userId : {
+                type : mongoose.Schema.Types.ObjectId,
+                ref : "User",
+                required : true
+            },
+            displayName : {
+                type : String,
+                required : true
+            }
+        }],
+        default : []
+    },
+
     // kept on the PARENT so the chat list can show "3 replies" without counting on every read
     replyCount : {
         type : Number,

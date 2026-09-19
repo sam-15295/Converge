@@ -3,6 +3,9 @@ import {allowedReactions} from "../config/reactions.js";
 
 const objectIdSchema = z.string().regex(/^[a-f0-9]{24}$/i, "Invalid id");
 
+// A message can mention this many people at most (every mention will become a notification later)
+export const maxMentions = 20;
+
 // A chat message is plain text. It is stored and shown as text (React escapes it), never as HTML.
 export const sendMessageSchema = z.object({
     content : z.string()
@@ -12,7 +15,13 @@ export const sendMessageSchema = z.object({
     .refine((val)=> !val.includes("\u0000"), "Message contains an invalid character"),
 
     // set when this message is a reply in a thread
-    parentMessageId : objectIdSchema.nullish()
+    parentMessageId : objectIdSchema.nullish(),
+
+    // Only WHO is meant is taken from the client. The name comes from our own data (see mentionService),
+    // so any displayName the client sends is dropped here.
+    mentions : z.array(z.object({userId : objectIdSchema}))
+    .max(maxMentions, `You can mention at most ${maxMentions} people in one message`)
+    .nullish()
 });
 
 // ?limit=30&before=<messageId>   or   ?after=<messageId>

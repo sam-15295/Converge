@@ -4,6 +4,7 @@ import appEvents from "../events/appEvents.js";
 import {sendMessageSchema, listMessagesQuerySchema} from "../validators/messageValidator.js";
 import formatZodErrors from "../validators/formatZodErrors.js";
 import {findPage, formatMessage, loadAndFormat} from "../service/messageService.js";
+import {resolveMentions} from "../service/mentionService.js";
 
 // Everything about a chat message is looked up INSIDE the workspace of the URL, so an id from another workspace is "not found".
 
@@ -18,7 +19,7 @@ export const sendMessage = async (req, res)=>{
             });
         }
 
-        const {content, parentMessageId} = result.data;
+        const {content, parentMessageId, mentions : requestedMentions} = result.data;
         const workspaceId = req.membership.workspaceId;
 
         // a reply must point at a message of this chat, and only ONE level of replies is allowed
@@ -39,11 +40,21 @@ export const sendMessage = async (req, res)=>{
             }
         }
 
+        // who is mentioned : members of THIS workspace only, named by our data, and really written in the text
+        const {mentions, problem} = await resolveMentions(workspaceId, content, requestedMentions);
+
+        if(problem){
+            return res.status(400).json({
+                message : problem
+            });
+        }
+
         // the sender comes from the login and the workspace from the URL, never from the body
         const created = await Message.create({
             workspaceId,
             senderId : req.user._id,
             content,
+            mentions,
             parentMessageId : parent ? parent._id : null
         });
 
@@ -64,6 +75,17 @@ export const sendMessage = async (req, res)=>{
         appEvents.emit("message:created", {workspaceId, chatMessage});
         if(updatedParent){
             appEvents.emit("message:updated", {workspaceId, chatMessage : updatedParent});
+        }
+
+        // one event per mentioned person : this is what the notifications (a later phase) will react to
+        for(const mention of mentions){
+            appEvents.emit("mention:created", {
+                workspaceId,
+                recipientId : mention.userId,
+                senderId : req.user._id,
+                sourceType : "MESSAGE",
+                sourceId : created._id
+            });
         }
 
         res.status(201).json({
