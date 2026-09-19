@@ -389,15 +389,23 @@ const attachDocumentHandlers = (io)=>{
         discardRoom(documentId);
     }
 
+    // An old version was put back. That change was made on the SERVER, so it is not relayed by any socket : it is sent
+    // to the room here, as an ordinary update. Every open editor applies it and converges, like with anybody's edit.
+    const onRestored = ({documentId, update})=>{
+        io.to(roomName(documentId)).emit("doc:update", {update});
+    }
+
     appEvents.on("membership:changed", onMembershipChanged);
     appEvents.on("workspace:deleted", onWorkspaceDeleted);
     appEvents.on("document:deleted", onDocumentDeleted);
+    appEvents.on("version:restored", onRestored);
 
     // used when the server stops (and by tests) so listeners are not added twice
     return ()=>{
         appEvents.off("membership:changed", onMembershipChanged);
         appEvents.off("workspace:deleted", onWorkspaceDeleted);
         appEvents.off("document:deleted", onDocumentDeleted);
+        appEvents.off("version:restored", onRestored);
     };
 }
 

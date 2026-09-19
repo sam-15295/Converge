@@ -2,6 +2,7 @@ import mongoose from "mongoose";
 import formatZodErrors from "../validators/formatZodErrors.js";
 import {listVersionsQuerySchema} from "../validators/versionValidator.js";
 import {contentOfState, findVersionWithState, findVersions, formatVersion} from "../service/versionService.js";
+import {restoreVersion as putVersionBack} from "../service/documentRestoreService.js";
 
 // The history of a document. Everything is looked up INSIDE the document of the URL (which documentContextMiddleware
 // already checked to be a document of this workspace), so a version id of another document is "not found".
@@ -58,6 +59,44 @@ export const getVersion = async (req, res)=>{
             message : "Version",
             version : formatVersion(version),
             content : contentOfState(version.yjsState)
+        });
+    }
+    catch(err){
+        console.log(err);
+        res.status(500).json({
+            message : "Internal Server Error"
+        });
+    }
+}
+
+// Puts an old version back. The document keeps being edited live while this happens : see documentRestoreService.
+export const restoreVersion = async (req, res)=>{
+    try{
+        const {versionId} = req.params;
+        const version = mongoose.isValidObjectId(versionId) ? await findVersionWithState(req.document._id, versionId) : null;
+
+        if(!version){
+            return res.status(404).json({
+                message : "Version not found"
+            });
+        }
+
+        const result = await putVersionBack({document : req.document, version, userId : req.user._id});
+
+        if(result.notFound){
+            return res.status(404).json({
+                message : "Document not found"
+            });
+        }
+        if(result.problem){
+            return res.status(409).json({
+                message : "This version cannot be restored"
+            });
+        }
+
+        res.status(201).json({
+            message : "Version restored Successfully",
+            version : formatVersion(result.version)
         });
     }
     catch(err){

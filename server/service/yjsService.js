@@ -1,7 +1,7 @@
 import * as Y from "yjs";
 import {getSchema} from "@tiptap/core";
 import StarterKit from "@tiptap/starter-kit";
-import {prosemirrorJSONToYDoc, yDocToProsemirrorJSON} from "@tiptap/y-tiptap";
+import {prosemirrorJSONToYDoc, prosemirrorJSONToYXmlFragment, yDocToProsemirrorJSON} from "@tiptap/y-tiptap";
 
 // Helpers to move between the two forms of a document :
 //   * the Yjs document (what is edited live and stored as the source of truth), and
@@ -33,6 +33,11 @@ export const yDocToJSON = (ydoc)=>{
 
     return json;
 }
+
+// Writes a JSON tree into a part of a Yjs document that ALREADY EXISTS, instead of building a new document.
+// This is what makes restoring an old version an ordinary edit : the live document everybody is connected to keeps
+// its identity, and the change travels to the editors like any other change.
+export const writeJsonIntoFragment = (json, fragment)=> prosemirrorJSONToYXmlFragment(schema, json, fragment);
 
 // The whole state of a Yjs document as one update (this is what gets stored in MongoDB)
 export const encodeState = (ydoc)=> Y.encodeStateAsUpdate(ydoc);
