@@ -28,7 +28,6 @@ const NotificationsProvider = ({ children })=>{
 
     useEffect(()=>{
         let stopped = false; // this effect was cleaned up (logged out / left the app)
-        let connectedBefore = false;
 
         // same origin as the page (the dev server forwards /socket.io to the backend). The login cookie travels with it.
         const socket = io({ transports: ["websocket"], withCredentials: true });
@@ -44,9 +43,10 @@ const NotificationsProvider = ({ children })=>{
                 setUnreadCount(answer.unreadCount);
                 setStatus("connected");
 
-                // after a lost connection the lists may have missed something : they read themselves again
-                if(connectedBefore) tell({ type: "reconnected" });
-                connectedBefore = true;
+                // The server only pushes from the moment of the join. A list that was read BEFORE that (after a lost connection,
+                // but also on a page that just opened, when the connection came up a moment after the list was read) may have
+                // missed something, so after EVERY join the lists read themselves again.
+                tell({ type: "joined" });
             });
         });
 

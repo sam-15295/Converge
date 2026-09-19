@@ -18,13 +18,21 @@ export const useNotificationList = ({ onlyUnread = false, limit = 20 } = {})=>{
 
     const unread = onlyUnread ? "true" : undefined;
 
+    // Only the NEWEST read may change the list : two reads can overlap (the one at mount and the one after the connection
+    // joined), and an older answer that arrives late must not put older data over a newer one.
+    const newestRead = useRef(0);
+
     const load = useCallback(async (signal)=>{
+        const mine = ++newestRead.current;
+
         try{
             const { notifications, hasMore } = await getNotifications({ limit, unread }, signal);
-            dispatch({ type: "loaded", items: notifications, hasMore });
+            if(mine === newestRead.current) dispatch({ type: "loaded", items: notifications, hasMore });
         }
         catch(err){
-            if(err.name !== "AbortError") dispatch({ type: "problem", message: `Could not load the notifications : ${err.message}` });
+            if(err.name !== "AbortError" && mine === newestRead.current){
+                dispatch({ type: "problem", message: `Could not load the notifications : ${err.message}` });
+            }
         }
     }, [limit, unread]);
 
@@ -40,8 +48,8 @@ export const useNotificationList = ({ onlyUnread = false, limit = 20 } = {})=>{
             if(event.type === "new") dispatch({ type: "received", notification: event.notification });
             else if(event.type === "read") dispatch({ type: "read", notificationId: event.notificationId, onlyUnread });
             else if(event.type === "allRead") dispatch({ type: "allRead", onlyUnread });
-            // something we cannot patch in : read the first page again (after being offline, or after leaving a workspace)
-            else if(event.type === "reconnected" || event.type === "count") load();
+            // something we cannot patch in : read the first page again (the connection joined, or you left a workspace)
+            else if(event.type === "joined" || event.type === "count") load();
         });
     }, [subscribe, onlyUnread, load]);
 
