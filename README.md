@@ -121,7 +121,7 @@ All endpoints live under `/api`. Every response is JSON with a `message`, plus e
 | `PATCH /api/workspace/:id/documents/:docId`| OWNER, ADMIN, MEMBER | Rename                                       |
 | `DELETE /api/workspace/:id/documents/:docId` | see below  | Delete a document                                    |
 | `GET /api/workspace/:id/messages`          | member       | The latest chat messages, or a page `?before=` / `?after=` a message id (`limit` 1-50) |
-| `POST /api/workspace/:id/messages`         | OWNER, ADMIN, MEMBER | Send a message, or a reply with `parentMessageId` (201) |
+| `POST /api/workspace/:id/messages`         | OWNER, ADMIN, MEMBER | Send a message, or a reply with `parentMessageId`; `mentions: [{userId}]` mentions members (201) |
 | `GET /api/workspace/:id/messages/:messageId/replies` | member | The replies of a message (its thread), same paging |
 | `PUT /api/workspace/:id/messages/:messageId/reactions/:emoji` | OWNER, ADMIN, MEMBER | Add your reaction (safe to repeat) |
 | `DELETE /api/workspace/:id/messages/:messageId/reactions/:emoji` | OWNER, ADMIN, MEMBER | Take your reaction back |
@@ -222,13 +222,31 @@ POST /messages -> validate -> save in MongoDB -> event bus: message:created -> S
 
 **Reconnecting:** the browser joins the room first and only then reads the history, so a message sent in between shows up in both and is shown once. After a lost connection it reads the latest page again: this fills in what was missed and refreshes reactions and reply counts. If more than one page was missed, the list starts again from the newest messages and the older ones load on demand.
 
+**Mentions.** Typing `@` in the message box lists the workspace members. A person chosen from the list becomes a *structured* mention, stored with the message as `mentions: [{ userId, displayName }]`. A `@Priya` typed completely by hand stays plain text.
+
+```jsonc
+// POST /api/workspace/:id/messages
+{ "content": "hi @Priya please look", "mentions": [{ "userId": "..." }] }
+```
+
+The client only says WHO is meant. The server decides the rest (`service/mentionService.js`):
+- every mentioned person must be a member of this workspace (`400` otherwise);
+- the stored `displayName` is the person's real name from the database, never a name sent by the client;
+- the text must really contain `@Name` (`mail@Name` and `@Namex` do not count, names are matched as plain text), so nobody can be mentioned invisibly, which would otherwise be a way to spam notifications;
+- at most 20 mentions per message, and the same person twice is one mention.
+
+Each stored mention emits `mention:created` `{ workspaceId, recipientId, senderId, sourceType: "MESSAGE", sourceId }` on the event bus, which is what notifications will listen to.
+
+In the browser the arrow keys move in the list, Enter or Tab (or a click) choose, Escape closes it. If a chosen name is edited away, that person is not mentioned. Mentions are highlighted (yours in yellow, and the whole message is tinted); the text is built from separate text pieces, never from HTML.
+
 **Security of the chat:**
 - Same cookie login and `Origin` check as the document sockets. Joining needs membership and `chat:view`; everybody else gets the same "not found".
 - The workspace id is checked to be a plain 24-character id before it reaches the database, and membership is checked again once the tab is registered, so a person removed during the join does not stay in.
 - Removing a member, leaving, or deleting the workspace closes that person's chat immediately. A role change keeps a reader in the chat and only tells the browser whether it may still send.
 - Every chat query is scoped to the workspace in the URL: a message id from another workspace is "not found".
 - Message text is shown as plain text by React, so nothing a person writes can run as HTML.
-- Limitations: presence and the rate-limit counters live in one server process (Redis in a later phase); messages cannot be edited or deleted yet; a reaction given while a browser was offline shows up on the recent messages after it reconnects, and on very old ones after a reload.
+- A mention can only point at a member of the workspace; the name and the visibility of a mention are decided by the server, and the mention list is limited to 20.
+- Limitations: the list of people offered by `@` is loaded when the chat page opens (somebody who joined later appears after a reload, somebody who left is refused by the server with a clear message); names are matched case-sensitively, and a stored name is a snapshot (old messages keep the name a person had then); presence and the rate-limit counters live in one server process (Redis in a later phase); messages cannot be edited or deleted yet; a reaction given while a browser was offline shows up on the recent messages after it reconnects, and on very old ones after a reload.
 
 ### Authentication and security
 
