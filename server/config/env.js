@@ -20,7 +20,10 @@ const envSchema = z.object({
     AUTH_RATE_LIMIT_MAX : z.coerce.number().int().positive().default(10),
 
     // chat messages one person may send in 10 seconds
-    CHAT_RATE_LIMIT_MAX : z.coerce.number().int().positive().default(30)
+    CHAT_RATE_LIMIT_MAX : z.coerce.number().int().positive().default(30),
+
+    // notification requests (list, count, mark as read) one person may make in a minute
+    NOTIFICATION_RATE_LIMIT_MAX : z.coerce.number().int().positive().default(120)
 });
 
 const parsed = envSchema.safeParse(process.env);

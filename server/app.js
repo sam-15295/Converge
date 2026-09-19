@@ -11,6 +11,7 @@ import healthRouter from "./routes/healthRouter.js";
 import userRouter from "./routes/userRouter.js";
 import workspaceRouter from "./routes/workspaceRouter.js";
 import inviteRouter from "./routes/inviteRouter.js";
+import notificationRouter from "./routes/notificationRouter.js";
 
 // The app is built here and started in index.js, so it can be imported
 // (for example by a test) without opening a port.
@@ -31,6 +32,7 @@ app.use("/api/health", healthRouter);
 app.use("/api/user", userRouter);
 app.use("/api/workspace", workspaceRouter);
 app.use("/api/invite", inviteRouter);
+app.use("/api/notifications", notificationRouter);
 
 app.use(notFoundMiddleware);
 app.use(errorMiddleware);

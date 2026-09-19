@@ -23,6 +23,34 @@ export const countUnread = async (userId)=>{
     return Notification.countDocuments({recipientId : userId, read : false, workspaceId : {$in : workspaceIds}});
 }
 
+// One page of a person's notifications, newest first, read with a CURSOR (the id of the last notification they have),
+// for the same reason as the chat history : page numbers shift when something new arrives.
+// Returns {notifications, hasMore}, or null when the cursor is not one of this person's visible notifications.
+export const findNotificationPage = async ({userId, workspaceIds, unreadOnly, before, limit})=>{
+    const filter = {recipientId : userId, workspaceId : {$in : workspaceIds}};
+
+    if(before){
+        // the cursor is looked up WITHOUT the unread filter : it may have been marked read since it was shown
+        const cursor = await Notification.findOne({_id : before, recipientId : userId, workspaceId : {$in : workspaceIds}}).select("createdAt");
+
+        if(!cursor){
+            return null;
+        }
+        filter.$or = [
+            {createdAt : {$lt : cursor.createdAt}},
+            {createdAt : cursor.createdAt, _id : {$lt : cursor._id}}
+        ];
+    }
+    if(unreadOnly){
+        filter.read = false;
+    }
+
+    // one extra tells whether there is more, without a second query
+    const found = await Notification.find(filter).sort({createdAt : -1, _id : -1}).limit(limit + 1);
+
+    return {notifications : found.slice(0, limit), hasMore : found.length > limit};
+}
+
 // Saves the notification, or returns null when this person was already notified about this source
 // (the unique index decides, so it also holds for two events at the same moment).
 export const createNotification = async ({type, recipientId, senderId, workspaceId, sourceType, sourceId})=>{
