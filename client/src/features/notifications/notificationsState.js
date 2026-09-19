@@ -58,11 +58,25 @@ export const listReducer = (state, action)=>{
     }
 }
 
-// Where a notification leads : the chat, at the message it is about.
-// For a reply the message to open is the one it answers (its thread), and the reply itself is named too.
+// Where a notification leads : the chat at the message it is about, or the document at the comment it is about.
+// For a reply the thing to open is the one it answers (its thread), and the reply itself is named too.
 export const notificationLink = (notification)=>{
+    const workspace = `/workspace/${notification.workspace.id}`;
+
+    if(notification.sourceType === "COMMENT"){
+        // the comment was deleted, or its document : the notification still opens the workspace, at the documents
+        const documentId = notification.document?.id ?? notification.preview?.documentId;
+        if(!documentId) return workspace;
+
+        const parentId = notification.preview?.parentCommentId;
+        const base = `${workspace}/document/${documentId}`;
+
+        if(parentId) return `${base}?comment=${parentId}&reply=${notification.sourceId}`;
+        return `${base}?comment=${notification.sourceId}`;
+    }
+
     const parentId = notification.preview?.parentMessageId;
-    const base = `/workspace/${notification.workspace.id}/chat`;
+    const base = `${workspace}/chat`;
 
     if(parentId) return `${base}?message=${parentId}&reply=${notification.sourceId}`;
     return `${base}?message=${notification.sourceId}`;
