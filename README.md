@@ -3,7 +3,7 @@
 A real-time collaborative workspace for teams: shared documents (Yjs), workspace chat,
 @mentions, notifications, comments and version history.
 
-> **Status:** Phase 5 - real-time collaborative editing complete. Features are being built one phase at a time.
+> **Status:** Phase 9 - document comments complete (after real-time editing, chat, mentions and notifications). Features are being built one phase at a time.
 
 ## Tech stack
 
@@ -23,8 +23,8 @@ server/
 ├── index.js          entry point: connects the database, starts the server
 ├── app.js            builds the Express app (middlewares + routes)
 ├── config/           settings and external connections (env, database, auth cookie, roles and permissions)
-├── service/          logic that does not belong to one route (Yjs helpers, the live document rooms, who is online, chat messages, mention checks, notifications)
-├── socket/           the real-time side: socket login check, the document protocol, the chat and notifications
+├── service/          logic that does not belong to one route (Yjs helpers, the live document rooms, who is online, chat messages, comment threads, mention checks, notifications)
+├── socket/           the real-time side: socket login check, the document protocol, the chat, the comments and notifications
 ├── events/           a small in-process event bus, and the listener that turns mentions into notifications
 ├── model/            Mongoose models
 ├── validators/       Zod schemas that check what the client sends
@@ -35,7 +35,7 @@ server/
 client/src/
 ├── pages/            one component per screen
 ├── components/       small reusable UI pieces
-├── features/         feature logic (auth, health, workspace, documents, chat, notifications, and the Yjs socket provider)
+├── features/         feature logic (auth, health, workspace, documents, chat, comments, notifications, the shared @mention box, and the Yjs socket provider)
 ├── hooks/            reusable React hooks
 ├── services/         the API client
 └── utils/            helper functions
@@ -76,7 +76,7 @@ only talks to `localhost:5173`.
 | `JWT_EXPIRES_IN_DAYS` | `7`                     | Login lifetime (also the cookie lifetime)          |
 | `BCRYPT_ROUNDS`       | `12`                    | bcrypt cost factor                                 |
 | `AUTH_RATE_LIMIT_MAX` | `10`                    | Failed login/signup attempts per IP per 15 minutes |
-| `CHAT_RATE_LIMIT_MAX` | `30`                    | Chat messages per person per 10 seconds (reactions get twice as many) |
+| `CHAT_RATE_LIMIT_MAX` | `30`                    | Chat messages per person per 10 seconds (reactions get twice as many). Comments get the same number, counted separately |
 | `NOTIFICATION_RATE_LIMIT_MAX` | `120`           | Notification requests (list, count, mark as read) per person per minute |
 
 Variables are validated with Zod at startup; the server exits with a clear message if any is invalid.
@@ -126,6 +126,11 @@ All endpoints live under `/api`. Every response is JSON with a `message`, plus e
 | `GET /api/workspace/:id/messages/:messageId/replies` | member | The replies of a message (its thread), same paging |
 | `PUT /api/workspace/:id/messages/:messageId/reactions/:emoji` | OWNER, ADMIN, MEMBER | Add your reaction (safe to repeat) |
 | `DELETE /api/workspace/:id/messages/:messageId/reactions/:emoji` | OWNER, ADMIN, MEMBER | Take your reaction back |
+| `GET /api/workspace/:id/documents/:docId/comments` | member | The comment threads of a document (a comment with its replies), newest first: `?status=open\|resolved\|all&limit&before` (cursor paging), and `openCount` |
+| `GET /api/workspace/:id/documents/:docId/comments/:commentId` | member | One thread, by the id of its first comment |
+| `POST /api/workspace/:id/documents/:docId/comments` | OWNER, ADMIN, MEMBER | Write a comment, or a reply with `parentCommentId`; `mentions: [{userId}]` mentions members (201) |
+| `POST .../comments/:commentId/resolve`, `/reopen` | OWNER, ADMIN, MEMBER | Resolve or reopen a thread (safe to repeat) |
+| `DELETE .../comments/:commentId`           | see below    | Delete a comment; deleting the first comment of a thread deletes the whole thread |
 | `GET /api/notifications`                   | yes          | My notifications, newest first: `?limit&before&unread=true&workspaceId` (cursor paging) |
 | `GET /api/notifications/unread-count`      | yes          | How many of mine are unread                          |
 | `PATCH /api/notifications/:id/read`        | yes (own)    | Mark one as read (safe to repeat)                    |
@@ -149,6 +154,10 @@ Every workspace route first checks that you are a member (a non-member gets `404
 | Delete a document you created   |  yes  |  yes  |  yes   |   -    |
 | Read the chat and its threads   |  yes  |  yes  |  yes   |  yes   |
 | Send messages, reply, react     |  yes  |  yes  |  yes   |   -    |
+| Read the comments of a document |  yes  |  yes  |  yes   |  yes   |
+| Write, reply, resolve, reopen   |  yes  |  yes  |  yes   |   -    |
+| Delete any comment              |  yes  |  yes  |   -    |   -    |
+| Delete a comment you wrote      |  yes  |  yes  |  yes   |   -    |
 
 One more rule sits on top: **you can only manage people who rank below you**, and only give roles below your own.
 So an ADMIN cannot change or remove another ADMIN or the OWNER, and nobody can make someone OWNER.
@@ -255,14 +264,14 @@ In the browser the arrow keys move in the list, Enter or Tab (or a click) choose
 
 ### Notifications and the mentions inbox
 
-When somebody is mentioned, the mentioned person gets a **notification**: it is saved, it shows on a bell that updates live, and it leads back to the message.
+When somebody is mentioned, in the chat or in a document comment, the mentioned person gets a **notification**: it is saved, it shows on a bell that updates live, and it leads back to the message or the comment.
 
 ```text
 POST /messages -> save -> event mention:created -> listener saves a Notification -> event notification:created
                                                                                        -> Socket.IO room user:<id> -> the bell
 ```
 
-- A notification **points at its source** (`sourceType`, `sourceId`, `workspaceId`, `senderId`), it does not store display text. The sender's name, the workspace name and a 140-character preview are looked up when it is shown (three queries for a whole list). There is one notification per person per source (unique index), so the same mention can never notify twice, and nobody is notified about their own message. The listener runs after the answer was sent, so a problem there can never make sending a message fail.
+- A notification **points at its source** (`sourceType`, `sourceId`, `workspaceId`, `senderId`), it does not store display text. The sender's name, the workspace name and a 140-character preview (for a comment also the title of its document) are looked up when it is shown (a few queries for a whole list, not some per notification). There is one notification per person per source (unique index), so the same mention can never notify twice, and nobody is notified about their own message. The listener runs after the answer was sent, so a problem there can never make sending a message fail.
 - **The inbox is about me, not about a workspace** (`/api/notifications`, see the table above). The list pages with a cursor like the chat history, can be limited to the unread ones or to one workspace, and marking as read is safe to repeat and keeps the time it was first read.
 - **Privacy:** everything (the list, the previews, the unread count, marking as read) is limited to the workspaces the person is a member of *right now*. Somebody who leaves or is removed stops seeing what was said there, and rejoining brings it back. Somebody else's notification is simply "not found".
 - **Live protocol** (`socket/notificationSocketHandlers.js`). A tab sends `notifications:join`; the answer is `{ok, unreadCount}`. The room name comes from the login of the connection, never from what the browser sends. The tab joins the room *before* the count is read, so a notification that arrives while counting cannot fall in the gap. The server pushes:
@@ -274,10 +283,52 @@ POST /messages -> save -> event mention:created -> listener saves a Notification
 | `notification:all-read {unreadCount}` | "mark all as read" in another tab |
 | `notification:unread-count {unreadCount}` | the count changed for another reason (you left a workspace) |
 
-- **The bell** is in a top bar around every logged in page. There is one connection per tab, and every push carries the count the *server* worked out, so the number never depends on counting in the browser. Two tabs of the same person always agree. The dropdown shows the latest notifications, `/notifications` is the mentions inbox (All / Unread, "Load more", "Mark all as read"), and both read themselves again after a lost connection.
-- **Deep links.** A notification leads to `/workspace/:id/chat?message=<id>` (and `&reply=<id>` for a mention inside a thread). The message may be far back in the history, so the chat asks for a *window* around it: `GET /api/workspace/:id/messages?around=<id>` (also for a thread's `/replies`) returns the message with some before and some after it, `limit` in all, and whether there is more on each side. The chat then shows that stretch of the past, scrolls to the message and flashes it, and enters a "you are looking at older messages" mode: live messages are only counted (added, they would appear after a gap), "Load newer messages" reads on, and "Jump to latest" (or sending a message) returns to the present. A link to a message that does not exist opens the chat normally, with an explanation.
+- **The bell** is in a top bar around every logged in page. There is one connection per tab, and every push carries the count the *server* worked out, so the number never depends on counting in the browser. Two tabs of the same person always agree. The dropdown shows the latest notifications, `/notifications` is the mentions inbox (All / Unread, "Load more", "Mark all as read"), and both read themselves again every time the live connection joins (after a lost connection, and also when the first connection comes up a moment after the list was read), because the server only pushes from the moment of the join.
+- **Deep links.** A notification leads to `/workspace/:id/chat?message=<id>` (and `&reply=<id>` for a mention inside a thread). The message may be far back in the history, so the chat asks for a *window* around it: `GET /api/workspace/:id/messages?around=<id>` (also for a thread's `/replies`) returns the message with some before and some after it, `limit` in all, and whether there is more on each side. The chat then shows that stretch of the past, scrolls to the message and flashes it, and enters a "you are looking at older messages" mode: live messages are only counted (added, they would appear after a gap), "Load newer messages" reads on, and "Jump to latest" (or sending a message) returns to the present. A link to a message that does not exist opens the chat normally, with an explanation. A mention in a **comment** leads to `/workspace/:id/document/:docId?comment=<threadId>` (and `&reply=<id>` inside a thread), see the next section.
 - **Security of notifications:** every endpoint needs a login and is limited to the caller's own notifications (`NOTIFICATION_RATE_LIMIT_MAX` per person per minute); ids are checked before they reach the database; names and previews are shown as text, never as HTML.
-- Limitations: the unread count and the rate limits live in one server process (Redis in a later phase); the mentions inbox is the only kind of notification so far (comments, replies and invitations come with their features); a notification is created even if the person is looking at that chat right now; the count pushed by two notifications that arrive at the same instant can briefly show the smaller number, and the next push or a reload corrects it.
+- Limitations: the unread count and the rate limits live in one server process (Redis in a later phase); mentions (in the chat and in comments) are the only kind of notification so far (a reply to your comment, and invitations, do not notify yet); a notification is created even if the person is looking at that chat right now; the count pushed by two notifications that arrive at the same instant can briefly show the smaller number, and the next push or a reload corrects it.
+
+### Document comments
+
+Every document has a comment panel next to the editor. A **thread** is a comment plus its replies (one level: a reply cannot have replies, and a thread holds at most 200 of them). A thread is *open* until somebody resolves it, and a resolved thread can be reopened. Comments are plain text (1 to 2000 characters) stored in MongoDB, and they belong to the document as a whole (they are not attached to a piece of the text).
+
+**Same pattern as the chat: writing goes through REST, reading arrives live.** `POST .../comments` validates, checks the permission and the rate limit, saves, and announces `comment:created` on the event bus. The socket layer (`socket/commentSocketHandlers.js`) pushes it to everybody who has that document's comments open. Sockets never save anything.
+
+```text
+POST .../comments -> validate -> save -> event comment:created -> Socket.IO room comments:<documentId> -> every open panel
+                                      -> event mention:created (one per mentioned person, sourceType "COMMENT") -> a notification
+```
+
+- **Listing** uses a cursor like the chat: `GET .../comments?status=open&limit=30&before=<threadId>` returns threads newest first, each with all its replies (oldest first), `hasMore`, and `openCount`. `openCount` (the number on the *Comments* button) is worked out by the **server** and sent with every live push, so tabs never drift by counting on their own.
+- **Resolving** is one atomic update (`updateOne` with `resolved: false` in the filter), so two people resolving at the same instant keep the first one's name and time, and repeating it changes nothing. Writing a reply to a resolved thread (or a full one) is refused with `409`.
+- **Deleting:** OWNER and ADMIN may delete any comment, a MEMBER only their own. Deleting the first comment of a thread deletes its replies too, and the notifications about all of them, and the people who had those notifications get their unread count corrected live.
+- **Mentions** work exactly like in the chat (the same `mentionService`, the same rules: members only, names from the database, the name must be in the text, at most 20). A comment mention creates the same kind of notification, so the mentions inbox shows chat and comment mentions together.
+- Deleting a document deletes its comments and their notifications. Deleting a workspace deletes its comments.
+
+**Live protocol** (`socket/commentSocketHandlers.js`):
+
+| Message | Direction | Meaning |
+| --- | --- | --- |
+| `comments:join {workspaceId, documentId}` | browser to server | open the comments of a document. The answer is `{ok, canComment}` |
+| `comments:leave` | browser to server | close them |
+| `comment:new {comment, openCount}` | server to browser | a new thread or reply |
+| `comment:updated {thread, openCount}` | server to browser | a thread was resolved or reopened |
+| `comment:removed {commentId, parentCommentId, openCount}` | server to browser | a thread (`parentCommentId` is null) or a reply is gone |
+| `comment:access {canComment}` | server to browser | your role changed, you may still read |
+| `comment:error {code, message}` | server to browser | `ACCESS_REVOKED`, `DOCUMENT_DELETED`, `WORKSPACE_DELETED` |
+
+A tab has one document's comments open at a time. **Reconnecting:** the browser joins first and only then reads the first page again, so a comment written in between is shown once (the reducer recognises ids), and what was missed while offline fills in.
+
+**In the browser.** The *Comments* button in the document header shows the number of open threads and opens the panel: a box to start a thread (`@` suggests members, exactly like in the chat), the *Open* and *Resolved* tabs, *Load more*, and *Reply*, *Resolve* / *Reopen* and *Delete* on each thread. Viewers see the comments without a box or buttons, and when somebody's role changes the box appears or disappears without a reload. While the connection is lost the panel says so and the box is replaced by an explanation.
+
+**Deep links.** A comment mention leads to `/workspace/:id/document/:docId?comment=<threadId>` (and `&reply=<replyId>` when the mention is in a reply). The document opens with the panel already open; the thread is read on its own (`GET .../comments/:commentId`), so it is shown at the top under *Linked comment* even when it is far older than the first page, the exact comment flashes, and the panel scrolls to a reply deep inside a long thread (the page itself does not move). A link to a comment that no longer exists opens the panel with an explanation. Following the same link again works again.
+
+**Security of comments:**
+- Everything is looked up **inside the document of the URL**, which is first checked to belong to the workspace of the URL: a comment id from another document or workspace is "not found", and the author, workspace and document of a comment never come from the request body.
+- The socket join needs a login, membership and `comment:view`, and the document must belong to the workspace; every failure gets the same answer. Membership is checked again once the tab is registered, so a person removed during the join does not stay in. A tab that closes during the join is dropped without a second check.
+- Removing a member, leaving, deleting the document or the workspace closes the open comments of the people concerned. A role change keeps a reader and only tells the browser whether it may still write.
+- Comment text, names and the document title in notifications are shown as text by React, never as HTML. Comments have their own rate limit (`CHAT_RATE_LIMIT_MAX` per person per 10 seconds, counted separately from chat) and joining is limited to 10 per 10 seconds per connection.
+- Limitations: comments belong to the whole document, they are not attached to a text selection; a comment cannot be edited, only deleted; nobody is notified that somebody replied to their thread (only mentions notify); the people offered by `@` are loaded when the page opens; on a narrow screen the panel sits below the editor; a draft that was not sent is lost if the connection drops while it is being written (the box is replaced by an explanation while offline, like in the chat); an ADMIN promoted or demoted while the page is open sees the Delete buttons change after a reload (the server always enforces the real role); the counters of the rate limits live in one server process (Redis in a later phase).
 
 ### Authentication and security
 
