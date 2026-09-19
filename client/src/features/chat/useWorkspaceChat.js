@@ -178,9 +178,9 @@ export const useWorkspaceChat = (workspaceId, userId)=>{
 
     // ---------- actions ----------
 
-    // Sends a message (or a reply). A failure is thrown, so the composer can show it and keep the text.
-    const send = useCallback(async (content, parentMessageId)=>{
-        const { chatMessage, parent } = await sendMessage(workspaceId, { content, parentMessageId });
+    // Sends a message (or a reply), with the people it mentions. A failure is thrown, so the composer can show it and keep the text.
+    const send = useCallback(async (content, parentMessageId, mentions)=>{
+        const { chatMessage, parent } = await sendMessage(workspaceId, { content, parentMessageId, mentions });
         dispatch({ type: "received", chatMessage });
         if(parent) dispatch({ type: "updated", chatMessage: parent }); // the reply count of the message it answers
     }, [workspaceId]);

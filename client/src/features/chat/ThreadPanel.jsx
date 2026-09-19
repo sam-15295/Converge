@@ -5,7 +5,7 @@ import { useMessageScroll } from "./useMessageScroll";
 
 // The replies to one message, next to the main chat. There is only ever one level of replies : a reply cannot be
 // answered again, so nothing here has a "Reply" button.
-const ThreadPanel = ({ chat, parent, currentUserId, canReact, names })=>{
+const ThreadPanel = ({ chat, parent, currentUserId, canReact, names, members })=>{
     const { thread } = chat;
     const { listRef, handleScroll } = useMessageScroll(thread.messages, currentUserId);
     const [loadingOlder, setLoadingOlder] = useState(false);
@@ -80,6 +80,7 @@ const ThreadPanel = ({ chat, parent, currentUserId, canReact, names })=>{
                     key={thread.parentId}
                     label="Write a reply"
                     placeholder="Reply…"
+                    members={members}
                     disabledReason={
                         chat.status !== "connected"
                             ? "You are offline, replies cannot be sent right now."
@@ -87,7 +88,7 @@ const ThreadPanel = ({ chat, parent, currentUserId, canReact, names })=>{
                               ? "You can read this chat but not write in it."
                               : null
                     }
-                    onSend={(content)=> chat.send(content, thread.parentId)}
+                    onSend={(content, mentions)=> chat.send(content, thread.parentId, mentions)}
                 />
             </div>
         </aside>

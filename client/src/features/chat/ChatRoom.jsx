@@ -68,7 +68,8 @@ const ChatRoom = ({ workspaceId, currentUserId, members })=>{
                     <MessageList chat={chat} currentUserId={currentUserId} canReact={canReact} names={names} />
                     <MessageComposer
                         label="Write a message"
-                        placeholder="Write a message…  (Enter sends, Shift+Enter is a new line)"
+                        placeholder="Write a message…  (@ mentions somebody, Enter sends, Shift+Enter is a new line)"
+                        members={members}
                         disabledReason={
                             chat.status !== "connected"
                                 ? "You are offline, messages cannot be sent right now."
@@ -76,7 +77,7 @@ const ChatRoom = ({ workspaceId, currentUserId, members })=>{
                                   ? "You can read this chat but not write in it."
                                   : null
                         }
-                        onSend={(content)=> chat.send(content)}
+                        onSend={(content, mentions)=> chat.send(content, undefined, mentions)}
                     />
                 </section>
 
@@ -88,6 +89,7 @@ const ChatRoom = ({ workspaceId, currentUserId, members })=>{
                             currentUserId={currentUserId}
                             canReact={canReact}
                             names={names}
+                            members={members}
                         />
                     </div>
                 )}

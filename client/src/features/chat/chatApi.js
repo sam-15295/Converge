@@ -22,9 +22,9 @@ export const getMessages = (workspaceId, params, signal)=> apiRequest(withQuery(
 export const getReplies = (workspaceId, messageId, params, signal)=>
     apiRequest(withQuery(`${base(workspaceId)}/${messageId}/replies`, params), { signal });
 
-// a normal message, or a reply when parentMessageId is given
-export const sendMessage = (workspaceId, { content, parentMessageId })=>
-    apiRequest(base(workspaceId), { method: "POST", body: { content, parentMessageId } });
+// a normal message, or a reply when parentMessageId is given. mentions : [{ userId }] (only WHO, the server adds the names)
+export const sendMessage = (workspaceId, { content, parentMessageId, mentions })=>
+    apiRequest(base(workspaceId), { method: "POST", body: { content, parentMessageId, mentions } });
 
 // the emoji goes in the URL, so it has to be encoded
 export const addReaction = (workspaceId, messageId, emoji)=>
