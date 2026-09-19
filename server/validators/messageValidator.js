@@ -24,12 +24,15 @@ export const sendMessageSchema = z.object({
     .nullish()
 });
 
-// ?limit=30&before=<messageId>   or   ?after=<messageId>
+// ?limit=30&before=<messageId>   or   ?after=<messageId>   or   ?around=<messageId>
 export const listMessagesQuerySchema = z.object({
     limit : z.coerce.number().int().min(1, "limit must be at least 1").max(50, "limit can be at most 50").default(30),
     before : objectIdSchema.optional(),
-    after : objectIdSchema.optional()
-}).refine((val)=> !(val.before && val.after), "Use either before or after, not both");
+    after : objectIdSchema.optional(),
+
+    // a window with this message in the middle (to open the chat at a message that is far back in the history)
+    around : objectIdSchema.optional()
+}).refine((val)=> [val.before, val.after, val.around].filter(Boolean).length <= 1, "Use only one of before, after or around");
 
 export const reactionParamsSchema = z.object({
     emoji : z.enum(allowedReactions, {error : "This reaction is not available"})

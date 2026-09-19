@@ -31,6 +31,44 @@ export const formatMessage = (message)=>{
     };
 }
 
+// The message itself, some messages before it and some after it, in chronological order. It opens the chat at a message that
+// is far back in the history (a link from a notification) without loading everything in between.
+// Both sides say whether there is more, like a normal page does. Returns null when the message is not in this chat (or thread).
+const findWindow = async ({workspaceId, parentMessageId, around, limit})=>{
+    const filter = {workspaceId, parentMessageId};
+    const target = await Message.findOne({_id : around, ...filter}).populate("senderId", "name");
+
+    if(!target){
+        return null;
+    }
+
+    const side = (operator)=> [
+        {createdAt : {[operator] : target.createdAt}},
+        {createdAt : target.createdAt, _id : {[operator] : target._id}}
+    ];
+
+    // Up to `limit` messages are read on each side : that is enough to fill the page from one side alone
+    // (when the target is at the very start or end) and to know whether there is more.
+    const [older, newer] = await Promise.all([
+        Message.find({...filter, $or : side("$lt")}).populate("senderId", "name").sort({createdAt : -1, _id : -1}).limit(limit),
+        Message.find({...filter, $or : side("$gt")}).populate("senderId", "name").sort({createdAt : 1, _id : 1}).limit(limit)
+    ]);
+
+    // The page is `limit` messages : the target and the rest split between the two sides, one more before it when odd.
+    // A side that has less than its half (the target is near the start or the end) gives what it does not use to the other,
+    // so the page is still full.
+    const budget = limit - 1;
+    let olderTake = Math.min(older.length, Math.ceil(budget / 2));
+    const newerTake = Math.min(newer.length, budget - olderTake);
+    olderTake = Math.min(older.length, budget - newerTake);
+
+    return {
+        messages : [...older.slice(0, olderTake).reverse(), target, ...newer.slice(0, newerTake)],
+        hasMoreOlder : older.length > olderTake,
+        hasMoreNewer : newer.length > newerTake
+    };
+}
+
 // Loads the sender's name if it is not loaded yet, then formats
 export const loadAndFormat = async (message)=>{
     if(!message.populated("senderId")){
@@ -49,7 +87,13 @@ export const loadAndFormat = async (message)=>{
 //
 // Returns { messages, hasMore } with the messages in chronological order (oldest first), or null when the cursor
 // message does not exist in this chat. `parentMessageId` null = the main chat, an id = the replies of that message.
-export const findPage = async ({workspaceId, parentMessageId, before, after, limit})=>{
+//
+//   around = id   a WINDOW with that message in the middle : returns { messages, hasMoreOlder, hasMoreNewer } instead
+export const findPage = async ({workspaceId, parentMessageId, before, after, around, limit})=>{
+    if(around){
+        return findWindow({workspaceId, parentMessageId, around, limit});
+    }
+
     const filter = {workspaceId, parentMessageId};
     const cursorId = before ?? after;
 

@@ -112,8 +112,8 @@ const readPage = async (req, res, parentMessageId)=>{
         });
     }
 
-    const {limit, before, after} = result.data;
-    const page = await findPage({workspaceId : req.membership.workspaceId, parentMessageId, before, after, limit});
+    const {limit, before, after, around} = result.data;
+    const page = await findPage({workspaceId : req.membership.workspaceId, parentMessageId, before, after, around, limit});
 
     if(!page){
         return res.status(404).json({
@@ -124,11 +124,13 @@ const readPage = async (req, res, parentMessageId)=>{
     res.status(200).json({
         message : "Chat messages",
         messages : page.messages.map(formatMessage),
-        hasMore : page.hasMore
+
+        // a window has two sides, a normal page one
+        ...(around ? {hasMoreOlder : page.hasMoreOlder, hasMoreNewer : page.hasMoreNewer} : {hasMore : page.hasMore})
     });
 }
 
-// The main chat : the latest messages, or a page before / after a given message.
+// The main chat : the latest messages, or a page before / after a given message, or a window around one.
 export const listMessages = async (req, res)=>{
     try{
         await readPage(req, res, null);
