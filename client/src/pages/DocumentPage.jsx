@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import FullPageMessage from "../components/FullPageMessage";
+import { useAuth } from "../features/auth/AuthContext";
 import DocumentEditor from "../features/documents/DocumentEditor";
 import DocumentTitle from "../features/documents/DocumentTitle";
 import { deleteDocument, getDocument } from "../features/documents/documentApi";
@@ -9,6 +10,7 @@ import { useFetch } from "../hooks/useFetch";
 const DocumentPage = ()=>{
     const { workspaceId, documentId } = useParams();
     const navigate = useNavigate();
+    const { user } = useAuth();
     const details = useFetch((signal)=> getDocument(workspaceId, documentId, signal), [workspaceId, documentId]);
     const [deleteError, setDeleteError] = useState(null);
 
@@ -63,15 +65,12 @@ const DocumentPage = ()=>{
                 />
             </div>
 
-            {/* The key changes when a newer version was loaded (after a conflict), which gives a fresh editor with the new content. */}
+            {/* The text does not come from the request above : the editor gets it over the socket, and stays in sync with everybody. */}
             <DocumentEditor
-                key={`${document.id}:${document.version}`}
                 workspaceId={workspaceId}
                 documentId={documentId}
-                initialContent={document.content}
-                initialVersion={document.version}
-                editable={canEdit}
-                onReloadRequested={details.reload}
+                canEditPermission={canEdit}
+                userName={user.name}
             />
 
             {canDelete && (

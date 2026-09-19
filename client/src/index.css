@@ -60,3 +60,28 @@
     color: #1d4ed8;
     text-decoration: underline;
 }
+
+/* Other people's cursors (TipTap Collaboration Caret). The colour of each one is set from the user's colour. */
+.collaboration-carets__caret {
+    position: relative;
+    margin-left: -1px;
+    margin-right: -1px;
+    border-left: 1px solid #0d0d0d;
+    border-right: 1px solid #0d0d0d;
+    word-break: normal;
+    pointer-events: none;
+}
+.collaboration-carets__label {
+    position: absolute;
+    top: -1.4em;
+    left: -1px;
+    font-size: 12px;
+    font-weight: 600;
+    line-height: normal;
+    padding: 0.1rem 0.3rem;
+    border-radius: 3px 3px 3px 0;
+    color: #fff;
+    white-space: nowrap;
+    user-select: none;
+    pointer-events: none;
+}
