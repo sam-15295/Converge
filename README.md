@@ -23,8 +23,8 @@ server/
 ├── index.js          entry point: connects the database, starts the server
 ├── app.js            builds the Express app (middlewares + routes)
 ├── config/           settings and external connections (env, database, auth cookie, roles and permissions)
-├── service/          logic that does not belong to one route (Yjs helpers, the live document rooms)
-├── socket/           the real-time side: socket login check and the document protocol
+├── service/          logic that does not belong to one route (Yjs helpers, the live document rooms, who is online, chat message formatting)
+├── socket/           the real-time side: socket login check, the document protocol and the chat
 ├── events/           a small in-process event bus
 ├── model/            Mongoose models
 ├── validators/       Zod schemas that check what the client sends
@@ -35,7 +35,7 @@ server/
 client/src/
 ├── pages/            one component per screen
 ├── components/       small reusable UI pieces
-├── features/         feature logic (auth, health, workspace, documents, and the Yjs socket provider)
+├── features/         feature logic (auth, health, workspace, documents, chat, and the Yjs socket provider)
 ├── hooks/            reusable React hooks
 ├── services/         the API client
 └── utils/            helper functions
@@ -76,6 +76,7 @@ only talks to `localhost:5173`.
 | `JWT_EXPIRES_IN_DAYS` | `7`                     | Login lifetime (also the cookie lifetime)          |
 | `BCRYPT_ROUNDS`       | `12`                    | bcrypt cost factor                                 |
 | `AUTH_RATE_LIMIT_MAX` | `10`                    | Failed login/signup attempts per IP per 15 minutes |
+| `CHAT_RATE_LIMIT_MAX` | `30`                    | Chat messages per person per 10 seconds (reactions get twice as many) |
 
 Variables are validated with Zod at startup; the server exits with a clear message if any is invalid.
 
@@ -119,6 +120,11 @@ All endpoints live under `/api`. Every response is JSON with a `message`, plus e
 | `GET /api/workspace/:id/documents/:docId`  | member       | One document's details and what you may do (its content travels over the socket) |
 | `PATCH /api/workspace/:id/documents/:docId`| OWNER, ADMIN, MEMBER | Rename                                       |
 | `DELETE /api/workspace/:id/documents/:docId` | see below  | Delete a document                                    |
+| `GET /api/workspace/:id/messages`          | member       | The latest chat messages, or a page `?before=` / `?after=` a message id (`limit` 1-50) |
+| `POST /api/workspace/:id/messages`         | OWNER, ADMIN, MEMBER | Send a message, or a reply with `parentMessageId` (201) |
+| `GET /api/workspace/:id/messages/:messageId/replies` | member | The replies of a message (its thread), same paging |
+| `PUT /api/workspace/:id/messages/:messageId/reactions/:emoji` | OWNER, ADMIN, MEMBER | Add your reaction (safe to repeat) |
+| `DELETE /api/workspace/:id/messages/:messageId/reactions/:emoji` | OWNER, ADMIN, MEMBER | Take your reaction back |
 
 ### Roles and permissions
 
@@ -136,6 +142,8 @@ Every workspace route first checks that you are a member (a non-member gets `404
 | Create, rename and edit documents |  yes  |  yes  |  yes   |   -    |
 | Delete any document             |  yes  |  yes  |   -    |   -    |
 | Delete a document you created   |  yes  |  yes  |  yes   |   -    |
+| Read the chat and its threads   |  yes  |  yes  |  yes   |  yes   |
+| Send messages, reply, react     |  yes  |  yes  |  yes   |   -    |
 
 One more rule sits on top: **you can only manage people who rank below you**, and only give roles below your own.
 So an ADMIN cannot change or remove another ADMIN or the OWNER, and nobody can make someone OWNER.
@@ -174,12 +182,53 @@ Browser A: TipTap <-> Yjs doc                 Browser B: TipTap <-> Yjs doc
 
 **Security of the real-time layer:**
 - The socket handshake uses the same HTTP-only login cookie as the REST API, and is refused for any `Origin` other than `CLIENT_URL` (cross-site WebSocket hijacking).
-- Joining needs workspace membership and `document:view`; sending edits needs `document:edit`. Outsiders get the same "not found" as for a document that does not exist.
+- Joining needs workspace membership and `document:view`; sending edits needs `document:edit`. Outsiders get the same "not found" as for a document that does not exist. Membership is checked again once the tab is registered in the room, so a person removed while joining is not let in.
 - Removing a member, changing a role, or deleting a document or workspace sends the affected people out of the room immediately.
 - Every incoming Yjs update is decoded and checked against the same whitelist as saved documents (allowed node types, marks and attributes; links only `http`, `https` or `mailto`) before it is applied or forwarded, and the whole document is checked again before it is saved.
 - Presence is controlled by the server: names and colours come from the logged in user, a Yjs client id belongs to the first connection that uses it, and cursors are cleaned.
 - Limits: 1 MB per message, a message rate per connection, and a size limit per document.
 - Limitation: the rooms live in one server process. Running several instances needs Redis Pub/Sub (planned).
+
+### Workspace chat
+
+Every workspace has one chat, with one-level threads and emoji reactions. Messages are plain text (1 to 4000 characters) stored in MongoDB.
+
+**Writing goes through REST, reading arrives live.** A message is sent with `POST /api/workspace/:id/messages`, so validation, permissions and rate limiting live in one place. The controller then announces `message:created` on the in-process event bus (`events/appEvents.js`), and the socket layer pushes it to everybody who has that workspace's chat open. Sockets never save anything, they only deliver.
+
+```text
+POST /messages -> validate -> save in MongoDB -> event bus: message:created -> Socket.IO room chat:<workspaceId>
+                                                                                   -> every open browser
+                                                                                      (the sender's own copy is recognised by its id and shown once)
+```
+
+- **Pagination** uses a cursor (the id of a message) instead of page numbers, so messages arriving while somebody scrolls cannot shift or repeat anything. The order is `(createdAt, _id)`, which stays strict for messages created in the same millisecond.
+- **Threads** have one level: a reply cannot have replies. The parent keeps an atomic reply counter (`$inc`) and the time of the last reply (`$max`).
+- **Reactions** are stored as `{ emoji: [userIds] }` and changed with `$addToSet` / `$pull`, so people reacting at the same instant never overwrite each other. Only the 8 emoji of a fixed list (`config/reactions.js`) are accepted, which also keeps user input out of database field names.
+- **Rate limits**, per person: `CHAT_RATE_LIMIT_MAX` messages per 10 seconds, and twice as many reactions.
+
+**Live protocol** (`socket/chatSocketHandlers.js`):
+
+| Message | Direction | Meaning |
+| --- | --- | --- |
+| `chat:join {workspaceId}` | browser to server | open the chat. The answer is `{ok, canSend, onlineUserIds}` |
+| `chat:leave` | browser to server | close it |
+| `chat:message {chatMessage}` | server to browser | a new message or reply |
+| `chat:message-updated {chatMessage}` | server to browser | new reactions, or a new reply count |
+| `presence:update {userId, online}` | server to browser | somebody opened or closed the chat |
+| `chat:access {canSend}` | server to browser | your role changed, you may still read |
+| `chat:error {code, message}` | server to browser | `ACCESS_REVOKED`, `WORKSPACE_DELETED` |
+
+**Presence** means "has this workspace's chat open in at least one tab". Two tabs of the same person count as one person: they come online with the first tab and go offline when the last one closes. It lives in server memory (`service/presenceService.js`) and is never saved.
+
+**Reconnecting:** the browser joins the room first and only then reads the history, so a message sent in between shows up in both and is shown once. After a lost connection it reads the latest page again: this fills in what was missed and refreshes reactions and reply counts. If more than one page was missed, the list starts again from the newest messages and the older ones load on demand.
+
+**Security of the chat:**
+- Same cookie login and `Origin` check as the document sockets. Joining needs membership and `chat:view`; everybody else gets the same "not found".
+- The workspace id is checked to be a plain 24-character id before it reaches the database, and membership is checked again once the tab is registered, so a person removed during the join does not stay in.
+- Removing a member, leaving, or deleting the workspace closes that person's chat immediately. A role change keeps a reader in the chat and only tells the browser whether it may still send.
+- Every chat query is scoped to the workspace in the URL: a message id from another workspace is "not found".
+- Message text is shown as plain text by React, so nothing a person writes can run as HTML.
+- Limitations: presence and the rate-limit counters live in one server process (Redis in a later phase); messages cannot be edited or deleted yet; a reaction given while a browser was offline shows up on the recent messages after it reconnects, and on very old ones after a reload.
 
 ### Authentication and security
 
