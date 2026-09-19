@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import FullPageMessage from "../components/FullPageMessage";
 import RoleBadge from "../components/RoleBadge";
+import ActivityFeed from "../features/activity/ActivityFeed";
 import CreateDocumentForm from "../features/documents/CreateDocumentForm";
 import { getDocuments } from "../features/documents/documentApi";
 import InviteForm from "../features/workspace/InviteForm";
@@ -100,6 +101,10 @@ const WorkspacePage = ()=>{
                         />
                     </div>
                 )}
+            </Section>
+
+            <Section title="Recent activity">
+                <ActivityFeed workspaceId={workspaceId} />
             </Section>
 
             <Section title={`Members (${members.length})`}>
