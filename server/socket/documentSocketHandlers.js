@@ -183,6 +183,13 @@ const attachDocumentHandlers = (io)=>{
                 return reply({ok : false, error : "Document not found"});
             }
 
+            // The tab was closed while we were checking. Registering it now would leave a dead connection in the room for
+            // ever (its disconnect was handled before it was registered), and the room could then never be closed.
+            if(!socket.connected){
+                closeRoomLater(room);
+                return;
+            }
+
             room.sockets.set(socket.id, {userId : socket.data.user.id, workspaceId});
             socket.join(roomName(documentId));
             socket.data.doc = {
@@ -193,6 +200,12 @@ const attachDocumentHandlers = (io)=>{
                 checkedAt : Date.now(),
                 violations : 0
             };
+
+            // If the person was removed while we were checking above, the removal found nobody to remove (we were not
+            // registered yet) and would never be noticed. Now that we are registered, ask once more, BEFORE sending anything.
+            if(!(await refreshAccess(socket))){
+                return reply({ok : false, error : "Document not found"});
+            }
 
             // step 2 of the handshake : what the browser is missing, plus the server's state vector
             socket.emit("doc:sync", {
