@@ -58,6 +58,14 @@ const WorkspacePage = ()=>{
             <header className="mt-3 flex flex-wrap items-center gap-3">
                 <h1 className="text-2xl font-bold text-slate-900">{workspace.name}</h1>
                 <RoleBadge role={role} />
+                {permissions.includes("chat:view") && (
+                    <Link
+                        to={`/workspace/${workspaceId}/chat`}
+                        className="ml-auto rounded-md bg-slate-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-700"
+                    >
+                        Open chat
+                    </Link>
+                )}
             </header>
             {workspace.description && <p className="mt-1 text-slate-600">{workspace.description}</p>}
 

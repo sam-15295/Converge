@@ -3,6 +3,7 @@ import { BrowserRouter, Route, Routes } from "react-router-dom";
 import AuthProvider from "./features/auth/AuthProvider";
 import ProtectedRoute from "./features/auth/ProtectedRoute";
 import PublicOnlyRoute from "./features/auth/PublicOnlyRoute";
+import ChatPage from "./pages/ChatPage";
 import DashboardPage from "./pages/DashboardPage";
 import WorkspacePage from "./pages/WorkspacePage";
 import LoginPage from "./pages/LoginPage";
@@ -31,6 +32,7 @@ const App = ()=>{
                         <Route element={<ProtectedRoute />}>
                             <Route path="/" element={<DashboardPage />} />
                             <Route path="/workspace/:workspaceId" element={<WorkspacePage />} />
+                            <Route path="/workspace/:workspaceId/chat" element={<ChatPage />} />
                             <Route path="/workspace/:workspaceId/document/:documentId" element={<DocumentPage />} />
                         </Route>
 
