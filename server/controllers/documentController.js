@@ -1,7 +1,7 @@
 import mongoose from "mongoose";
 import Document from "../model/documentSchema.js";
 import {can, permissionsOf} from "../config/permissions.js";
-import {createDocumentSchema, renameDocumentSchema} from "../validators/documentValidator.js";
+import {createDocumentSchema, renameDocumentSchema, saveContentSchema} from "../validators/documentValidator.js";
 import formatZodErrors from "../validators/formatZodErrors.js";
 
 // what the document list shows (never the content, it can be large)
@@ -172,6 +172,68 @@ export const deleteDocument = async (req, res)=>{
 
         res.status(200).json({
             message : "Document deleted Successfully"
+        });
+    }
+    catch(err){
+        console.log(err);
+        res.status(500).json({
+            message : "Internal Server Error"
+        });
+    }
+}
+
+// Saves the content of the editor.
+// Optimistic locking : the update only matches while the document is STILL at the version the editor
+// started from. So if somebody else saved in the meantime, this save matches nothing and gets a 409,
+// instead of silently overwriting their work. The check and the update are one atomic database
+// operation, so two saves at the same moment can never both win.
+export const saveContent = async (req, res)=>{
+    try{
+        const {documentId} = req.params;
+
+        if(!mongoose.isValidObjectId(documentId)){
+            return res.status(404).json({
+                message : "Document not found"
+            });
+        }
+
+        const result = saveContentSchema.safeParse(req.body);
+
+        if(!result.success){
+            return res.status(400).json({
+                message : result.error.issues[0].message,
+                errors : formatZodErrors(result.error)
+            });
+        }
+
+        const {content, version} = result.data;
+        const workspaceId = req.membership.workspaceId;
+
+        const saved = await Document.findOneAndUpdate(
+            {_id : documentId, workspaceId, version},
+            {$set : {content, lastEditedBy : req.user._id}, $inc : {version : 1}},
+            {new : true, projection : {version : 1, updatedAt : 1}}
+        );
+
+        if(!saved){
+            // no match : the document does not exist in this workspace, or it moved on to a newer version
+            const exists = await Document.exists({_id : documentId, workspaceId});
+
+            if(!exists){
+                return res.status(404).json({
+                    message : "Document not found"
+                });
+            }
+
+            return res.status(409).json({
+                message : "This document was changed by someone else. Reload to see the latest version."
+            });
+        }
+
+        res.status(200).json({
+            message : "Document saved Successfully",
+            version : saved.version,
+            updatedAt : saved.updatedAt
         });
     }
     catch(err){
