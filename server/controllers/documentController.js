@@ -5,6 +5,7 @@ import {createDocumentSchema, renameDocumentSchema} from "../validators/document
 import formatZodErrors from "../validators/formatZodErrors.js";
 import appEvents from "../events/appEvents.js";
 import {removeCommentsOfDocument} from "../service/commentService.js";
+import {removeVersionsOfDocument} from "../service/versionService.js";
 
 // what the document list shows (never the content, it can be large)
 const formatDocumentSummary = (document, membership, user)=>{
@@ -173,6 +174,9 @@ export const deleteDocument = async (req, res)=>{
         for(const recipientId of await removeCommentsOfDocument(document._id)){
             appEvents.emit("notification:recount", {recipientId});
         }
+
+        // and its history : a version of a document that no longer exists could never be opened or restored
+        await removeVersionsOfDocument(document._id);
 
         // people who have it open are sent away (the socket layer listens)
         appEvents.emit("document:deleted", {workspaceId : document.workspaceId, documentId : document._id});

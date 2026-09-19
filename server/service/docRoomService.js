@@ -3,6 +3,7 @@ import {Awareness} from "y-protocols/awareness";
 import Document from "../model/documentSchema.js";
 import {jsonToYDoc, yDocToJSON, encodeState} from "./yjsService.js";
 import {findContentProblem} from "../validators/documentContentValidator.js";
+import {endSession, forgetDocument, noteEdit, onBeforeVersion, resetVersionScheduler} from "./versionScheduler.js";
 
 // One "room" = one document that people have open right now.
 // The room holds the live Yjs document in memory (the server's copy, which every editor syncs with)
@@ -47,6 +48,7 @@ const loadRoom = async (documentId)=>{
 
     const room = {
         documentId : String(documentId),
+        workspaceId : String(stored.workspaceId),
         doc,
         awareness : new Awareness(doc),
         sockets : new Map(),            // socketId -> {userId, workspaceId}
@@ -100,6 +102,16 @@ export const getRoom = async (documentId)=>{
 
 export const getOpenRoom = (documentId)=> rooms.get(String(documentId));
 
+// The history is about to read this document from the database : if it is open here, save what is still only in memory.
+// (Nothing happens for a document nobody has open : its last state is already stored.)
+onBeforeVersion(async (documentId)=>{
+    const room = rooms.get(String(documentId));
+
+    if(room && !room.destroyed){
+        await persistRoom(room);
+    }
+});
+
 export const listRooms = ()=> [...rooms.values()];
 
 // Saves the room to MongoDB. Saves of one room never overlap (each waits for the previous one).
@@ -142,6 +154,9 @@ export const persistRoom = (room)=>{
 export const scheduleSave = (room)=>{
     room.dirty = true;
 
+    // the history works on much longer periods than a save : it only notes who edited and when the typing stops
+    noteEdit({documentId : room.documentId, workspaceId : room.workspaceId, userId : room.lastEditorId});
+
     if(!room.saveTimer){
         room.saveTimer = setTimeout(()=>{
             room.saveTimer = null;
@@ -181,7 +196,12 @@ export const closeRoomLater = (room)=>{
             return;
         }
 
-        room.closePromise = persistRoom(room).then(()=> destroyRoom(room));
+        // Everybody has left, so the editing session is over : the history may write its version now (it reads the
+        // state from the database, which the save above has just brought up to date).
+        room.closePromise = persistRoom(room).then(()=>{
+            destroyRoom(room);
+            endSession(room.documentId);
+        });
     }, closeDelayMs);
     room.closeTimer.unref();
 }
@@ -194,6 +214,8 @@ export const discardRoom = (documentId)=>{
         room.discarded = true;
         destroyRoom(room);
     }
+    // no version of a document that no longer exists
+    forgetDocument(documentId);
     return room;
 }
 
@@ -214,5 +236,6 @@ export const resetRooms = async ()=>{
         destroyRoom(room);
     }
     loading.clear();
+    resetVersionScheduler();
 }
 

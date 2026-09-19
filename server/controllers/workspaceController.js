@@ -5,6 +5,7 @@ import Document from "../model/documentSchema.js";
 import Message from "../model/messageSchema.js";
 import Notification from "../model/notificationSchema.js";
 import Comment from "../model/commentSchema.js";
+import DocumentVersion from "../model/documentVersionSchema.js";
 import appEvents from "../events/appEvents.js";
 import {permissionsOf, rolesBelow} from "../config/permissions.js";
 import {createWorkspaceSchema, updateWorkspaceSchema} from "../validators/workspaceValidator.js";
@@ -178,6 +179,7 @@ export const deleteWorkspace = async (req, res)=>{
         await Message.deleteMany({workspaceId});
         await Notification.deleteMany({workspaceId});
         await Comment.deleteMany({workspaceId});
+        await DocumentVersion.deleteMany({workspaceId});
         await Workspace.deleteOne({_id : workspaceId});
 
         // people who have one of its documents open are sent away (the socket layer listens)

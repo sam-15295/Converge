@@ -23,7 +23,12 @@ const envSchema = z.object({
     CHAT_RATE_LIMIT_MAX : z.coerce.number().int().positive().default(30),
 
     // notification requests (list, count, mark as read) one person may make in a minute
-    NOTIFICATION_RATE_LIMIT_MAX : z.coerce.number().int().positive().default(120)
+    NOTIFICATION_RATE_LIMIT_MAX : z.coerce.number().int().positive().default(120),
+
+    // version history : how long a document must be quiet before the editing session counts as finished,
+    // and the shortest time between two versions of the same document (see service/versionScheduler.js)
+    VERSION_QUIET_SECONDS : z.coerce.number().positive().default(120),
+    VERSION_MIN_GAP_SECONDS : z.coerce.number().positive().default(300)
 });
 
 const parsed = envSchema.safeParse(process.env);

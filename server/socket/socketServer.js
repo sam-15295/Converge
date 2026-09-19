@@ -6,6 +6,7 @@ import attachChatHandlers from "./chatSocketHandlers.js";
 import attachNotificationHandlers from "./notificationSocketHandlers.js";
 import attachCommentHandlers from "./commentSocketHandlers.js";
 import {flushAllRooms, resetRooms} from "../service/docRoomService.js";
+import {flushAllVersions} from "../service/versionScheduler.js";
 import {resetPresence} from "../service/presenceService.js";
 
 const allowedOrigin = new URL(env.CLIENT_URL).origin;
@@ -48,6 +49,7 @@ export const closeSocketServer = async (io)=>{
     io.detachNotificationHandlers?.();
     io.detachCommentHandlers?.();
     await flushAllRooms();
+    await flushAllVersions();   // a session that was waiting for its version still gets one
     io.disconnectSockets(true);     // do not wait for a client that is stuck
     await new Promise((resolve)=> io.close(resolve));
     await resetRooms();
