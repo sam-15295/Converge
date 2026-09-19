@@ -28,7 +28,17 @@ export const permissions = {
 
     "invite:create" : ["OWNER", "ADMIN"],
     "invite:view" : ["OWNER", "ADMIN"],
-    "invite:revoke" : ["OWNER", "ADMIN"]
+    "invite:revoke" : ["OWNER", "ADMIN"],
+
+    "document:view" : ["OWNER", "ADMIN", "MEMBER", "VIEWER"],
+    "document:create" : ["OWNER", "ADMIN", "MEMBER"],
+    "document:edit" : ["OWNER", "ADMIN", "MEMBER"],
+
+    // deleting depends on WHO CREATED the document as well :
+    //   document:delete    --> may delete any document
+    //   document:deleteOwn --> may delete only the documents they created themselves
+    "document:delete" : ["OWNER", "ADMIN"],
+    "document:deleteOwn" : ["OWNER", "ADMIN", "MEMBER"]
 };
 
 export const can = (role, permission)=>{
