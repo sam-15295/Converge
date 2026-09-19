@@ -1,16 +1,17 @@
 import { useId, useRef, useState } from "react";
 import { findMentionQuery, insertMention, mentionsInText, suggestMembers } from "./mentions";
 
-const maxLength = 4000; // the same limit as the server
+const messageMaxLength = 4000; // the limit of a chat message on the server
 
-// The box where a message is written. Enter sends, Shift+Enter starts a new line.
+// The box where a message or a comment is written. Enter sends, Shift+Enter starts a new line.
 // The text is only cleared AFTER the server accepted the message : if sending fails, nothing the user wrote is lost.
 // onSend(content, mentions) must throw when it fails, so the reason can be shown here.
 //
 // members : the people who can be mentioned, [{ userId, name }]. Typing "@" opens a list of them :
 //   arrow keys move, Enter or Tab (or a click) choose, Escape closes. Only people CHOSEN from the list are mentions,
 //   a "@Priya" typed by hand stays plain text. If the name is edited away after choosing, the mention is dropped.
-const MessageComposer = ({ onSend, label, placeholder, disabledReason, members = [] })=>{
+// maxLength : the longest text the server accepts here (a comment is shorter than a chat message)
+const MentionComposer = ({ onSend, label, placeholder, disabledReason, members = [], maxLength = messageMaxLength })=>{
     const [text, setText] = useState("");
     const [caret, setCaret] = useState(0);
     const [picked, setPicked] = useState([]);
@@ -175,4 +176,4 @@ const MessageComposer = ({ onSend, label, placeholder, disabledReason, members =
     );
 }
 
-export default MessageComposer;
+export default MentionComposer;

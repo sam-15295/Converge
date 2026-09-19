@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { Link } from "react-router-dom";
-import MessageComposer from "./MessageComposer";
+import MentionComposer from "../mentions/MentionComposer";
 import MessageList from "./MessageList";
 import OnlinePeople from "./OnlinePeople";
 import ThreadPanel from "./ThreadPanel";
@@ -82,7 +82,7 @@ const ChatRoom = ({ workspaceId, currentUserId, members, focus })=>{
                 {/* on a small screen an open thread takes the whole width, the main chat is hidden meanwhile */}
                 <section className={`min-w-0 flex-1 flex-col gap-3 ${chat.thread ? "hidden md:flex" : "flex"}`}>
                     <MessageList chat={chat} currentUserId={currentUserId} canReact={canReact} names={names} />
-                    <MessageComposer
+                    <MentionComposer
                         label="Write a message"
                         placeholder="Write a message…  (@ mentions somebody, Enter sends, Shift+Enter is a new line)"
                         members={members}

@@ -1,10 +1,10 @@
 import { useEffect } from "react";
 
-// Moves a list to what a link pointed at : the highlighted message is scrolled to the middle of the list. With no message
+// Moves a list to what a link pointed at : the highlighted item is scrolled to the middle of the list. With no item
 // (id null) the list goes to its newest end, which is what "Jump to latest" wants.
-// focus is { id, token } from the chat state. The token is different every time, so the SAME message works twice
-// (following one link again after scrolling away).
-export const useFocusScroll = (listRef, focus)=>{
+// focus is { id, token }. The token is different every time, so the SAME item works twice (following one link again
+// after scrolling away). The items have the id `${idPrefix}-${id}` in the page ("message" in the chat, "comment" in comments).
+export const useFocusScroll = (listRef, focus, idPrefix = "message")=>{
     const id = focus?.id;
     const token = focus?.token;
 
@@ -15,7 +15,7 @@ export const useFocusScroll = (listRef, focus)=>{
         if(!list) return;
 
         if(id){
-            const element = document.getElementById(`message-${id}`);
+            const element = document.getElementById(`${idPrefix}-${id}`);
             if(!element) return;
 
             // Only THIS list is scrolled. (element.scrollIntoView would also scroll the whole page, and the header would
@@ -25,5 +25,5 @@ export const useFocusScroll = (listRef, focus)=>{
         } else {
             list.scrollTop = list.scrollHeight;
         }
-    }, [id, token, listRef]);
+    }, [id, token, listRef, idPrefix]);
 }

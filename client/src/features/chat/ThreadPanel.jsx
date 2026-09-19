@@ -1,7 +1,7 @@
 import { useState } from "react";
-import MessageComposer from "./MessageComposer";
+import MentionComposer from "../mentions/MentionComposer";
 import MessageItem from "./MessageItem";
-import { useFocusScroll } from "./useFocusScroll";
+import { useFocusScroll } from "../../hooks/useFocusScroll";
 import { useMessageScroll } from "./useMessageScroll";
 
 // The replies to one message, next to the main chat. There is only ever one level of replies : a reply cannot be
@@ -103,7 +103,7 @@ const ThreadPanel = ({ chat, parent, currentUserId, canReact, names, members })=
             </div>
 
             <div className="border-t border-slate-200 p-3">
-                <MessageComposer
+                <MentionComposer
                     // a new composer for every thread, so a half-written reply does not move to another thread
                     key={thread.parentId}
                     label="Write a reply"

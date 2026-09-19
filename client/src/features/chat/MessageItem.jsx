@@ -1,30 +1,6 @@
 import ReactionBar from "./ReactionBar";
-import { splitByMentions } from "./mentions";
+import MentionText from "../mentions/MentionText";
 import { formatTime } from "../../utils/formatTime";
-
-// The text of a message with its mentions highlighted (yours in yellow, the others in blue).
-// It is built from separate pieces of TEXT, never from HTML : React escapes every piece, so nothing a person writes
-// can ever run. Only mentions stored with the message are highlighted, a "@Priya" typed by hand stays plain.
-const MessageText = ({ content, mentions, currentUserId })=>{
-    return (
-        <p className="wrap-break-word whitespace-pre-wrap text-slate-800">
-            {splitByMentions(content, mentions).map((part, index)=>
-                part.userIds ? (
-                    <span
-                        key={index}
-                        className={`rounded px-0.5 font-medium ${
-                            part.userIds.includes(currentUserId) ? "bg-amber-200 text-amber-900" : "bg-blue-100 text-blue-800"
-                        }`}
-                    >
-                        {part.text}
-                    </span>
-                ) : (
-                    part.text
-                )
-            )}
-        </p>
-    );
-}
 
 // One message.
 // onOpenThread is left out for a message that is already inside a thread (replies have no replies).
@@ -58,7 +34,7 @@ const MessageItem = ({ message, currentUserId, canReact, canReply, names, onTogg
                     {mentionsMe && <span className="sr-only">mentions you</span>}
                 </p>
 
-                <MessageText content={message.content} mentions={message.mentions} currentUserId={currentUserId} />
+                <MentionText content={message.content} mentions={message.mentions} currentUserId={currentUserId} />
 
                 <ReactionBar
                     message={message}

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import MessageItem from "./MessageItem";
-import { useFocusScroll } from "./useFocusScroll";
+import { useFocusScroll } from "../../hooks/useFocusScroll";
 import { useMessageScroll } from "./useMessageScroll";
 
 // The scrolling list of the main chat, oldest at the top. Scrolling up to the top offers the older history.
