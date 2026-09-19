@@ -3,6 +3,8 @@ import WorkspaceMember from "../model/workspaceMemberSchema.js";
 import Workspace from "../model/workspaceSchema.js";
 import User from "../model/userSchema.js";
 import Message from "../model/messageSchema.js";
+import Comment from "../model/commentSchema.js";
+import Document from "../model/documentSchema.js";
 
 const previewLength = 140;
 
@@ -79,34 +81,42 @@ export const deleteNotificationsOf = async (sourceType, sourceIds)=>{
 }
 
 // What is sent to clients (REST and sockets). The notification only holds ids, so the names, the workspace and a preview
-// of the message are looked up here : three queries for the whole list, not three per notification.
+// of the message or comment are looked up here : a few queries for the whole list, not some per notification.
+//
+// A notification about a CHAT MESSAGE has  preview {content, parentMessageId}.
+// A notification about a COMMENT has       preview {content, parentCommentId, documentId}  and  document {id, title}.
+// Nothing is ever shown that belongs to another workspace than the notification (a forged notification shows nothing).
 export const formatNotifications = async (notifications)=>{
     if(notifications.length === 0){
         return [];
     }
 
     const unique = (values)=> [...new Set(values.map(String))];
-    const [senders, workspaces, messages] = await Promise.all([
+    const sourceIds = (sourceType)=> unique(notifications.filter((notification)=> notification.sourceType === sourceType).map((notification)=> notification.sourceId));
+
+    const [senders, workspaces, messages, comments] = await Promise.all([
         User.find({_id : {$in : unique(notifications.map((notification)=> notification.senderId))}}).select("name"),
         Workspace.find({_id : {$in : unique(notifications.map((notification)=> notification.workspaceId))}}).select("name"),
-        Message.find({_id : {$in : unique(notifications.filter((notification)=> notification.sourceType === "MESSAGE").map((notification)=> notification.sourceId))}}).select("content parentMessageId workspaceId")
+        Message.find({_id : {$in : sourceIds("MESSAGE")}}).select("content parentMessageId workspaceId"),
+        Comment.find({_id : {$in : sourceIds("COMMENT")}}).select("content parentCommentId documentId workspaceId")
     ]);
 
-    const byId = (documents)=> new Map(documents.map((document)=> [String(document._id), document]));
+    // the documents the comments are on (for their titles)
+    const documents = await Document.find({_id : {$in : unique(comments.map((comment)=> comment.documentId))}}).select("title workspaceId");
+
+    const byId = (list)=> new Map(list.map((item)=> [String(item._id), item]));
     const senderOf = byId(senders);
     const workspaceOf = byId(workspaces);
     const messageOf = byId(messages);
+    const commentOf = byId(comments);
+    const documentOf = byId(documents);
 
     return notifications.map((notification)=>{
         const sender = senderOf.get(String(notification.senderId));
         const workspace = workspaceOf.get(String(notification.workspaceId));
-        const message = messageOf.get(String(notification.sourceId));
+        const inThisWorkspace = (thing)=> thing && String(thing.workspaceId) === String(notification.workspaceId);
 
-        // A preview is only shown when the message really belongs to the workspace of the notification
-        // (text from anywhere else is never shown through a notification).
-        const showPreview = message && String(message.workspaceId) === String(notification.workspaceId);
-
-        return {
+        const shown = {
             id : String(notification._id),
             type : notification.type,
             sourceType : notification.sourceType,
@@ -114,8 +124,30 @@ export const formatNotifications = async (notifications)=>{
             workspace : {id : String(notification.workspaceId), name : workspace?.name ?? null},
             sender : {id : String(notification.senderId), name : sender?.name ?? null},
             read : notification.read,
-            createdAt : notification.createdAt.toISOString(),
-            preview : showPreview ? {content : snippet(message.content), parentMessageId : message.parentMessageId ? String(message.parentMessageId) : null} : null
+            createdAt : notification.createdAt.toISOString()
         };
+
+        if(notification.sourceType === "COMMENT"){
+            const comment = commentOf.get(String(notification.sourceId));
+            const commentShown = inThisWorkspace(comment);
+            const document = commentShown ? documentOf.get(String(comment.documentId)) : null;
+
+            shown.preview = commentShown ? {
+                content : snippet(comment.content),
+                parentCommentId : comment.parentCommentId ? String(comment.parentCommentId) : null,
+                documentId : String(comment.documentId)
+            } : null;
+            shown.document = inThisWorkspace(document) ? {id : String(document._id), title : document.title} : null;
+            return shown;
+        }
+
+        // A preview is only shown when the message really belongs to the workspace of the notification
+        // (text from anywhere else is never shown through a notification).
+        const message = messageOf.get(String(notification.sourceId));
+
+        shown.preview = inThisWorkspace(message)
+            ? {content : snippet(message.content), parentMessageId : message.parentMessageId ? String(message.parentMessageId) : null}
+            : null;
+        return shown;
     });
 }
