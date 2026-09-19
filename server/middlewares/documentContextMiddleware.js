@@ -1,10 +1,10 @@
 import mongoose from "mongoose";
 import Document from "../model/documentSchema.js";
 
-// The comments of a document live under /api/workspace/:workspaceId/documents/:documentId/comments.
+// Everything that hangs UNDER a document (its comments, its version history) is mounted behind this.
 // The document is always looked up INSIDE the workspace of the URL, so a document of another workspace is simply
 // "not found". On success req.document holds it. (Runs after the login and membership checks of the workspace router.)
-const commentDocumentMiddleware = async (req, res, next)=>{
+const documentContextMiddleware = async (req, res, next)=>{
     try{
         const {documentId} = req.params;
 
@@ -31,4 +31,4 @@ const commentDocumentMiddleware = async (req, res, next)=>{
     }
 }
 
-export default commentDocumentMiddleware;
+export default documentContextMiddleware;

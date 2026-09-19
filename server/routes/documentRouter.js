@@ -1,8 +1,9 @@
 import express from "express";
 import {createDocument, listDocuments, getDocument, renameDocument, deleteDocument} from "../controllers/documentController.js";
 import requirePermissionMiddleware from "../middlewares/requirePermissionMiddleware.js";
-import commentDocumentMiddleware from "../middlewares/commentDocumentMiddleware.js";
+import documentContextMiddleware from "../middlewares/documentContextMiddleware.js";
 import commentRouter from "./commentRouter.js";
+import documentVersionRouter from "./documentVersionRouter.js";
 
 // mergeParams : so :workspaceId from the parent router is available here
 // The routes below are mounted inside workspaceRouter, AFTER authUserMiddleware and workspaceMemberMiddleware,
@@ -17,7 +18,8 @@ documentRouter.patch("/:documentId", requirePermissionMiddleware("document:edit"
 // no fixed permission here : who may delete depends on the role AND on who created the document (see the controller)
 documentRouter.delete("/:documentId", deleteDocument);
 
-// the comments of a document (first : is it really a document of this workspace?)
-documentRouter.use("/:documentId/comments", commentDocumentMiddleware, commentRouter);
+// what hangs under a document (first : is it really a document of this workspace?)
+documentRouter.use("/:documentId/comments", documentContextMiddleware, commentRouter);
+documentRouter.use("/:documentId/versions", documentContextMiddleware, documentVersionRouter);
 
 export default documentRouter;

@@ -54,7 +54,12 @@ export const permissions = {
     //   comment:delete    --> may delete any comment
     //   comment:deleteOwn --> may delete only the comments they wrote themselves
     "comment:delete" : ["OWNER", "ADMIN"],
-    "comment:deleteOwn" : ["OWNER", "ADMIN", "MEMBER"]
+    "comment:deleteOwn" : ["OWNER", "ADMIN", "MEMBER"],
+
+    // the history of a document : everybody who may read it may look at the history. Putting an old version back is an
+    // EDIT of the document, so exactly the people who may edit it may do that.
+    "version:view" : ["OWNER", "ADMIN", "MEMBER", "VIEWER"],
+    "version:restore" : ["OWNER", "ADMIN", "MEMBER"]
 };
 
 export const can = (role, permission)=>{

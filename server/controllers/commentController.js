@@ -7,7 +7,7 @@ import formatZodErrors from "../validators/formatZodErrors.js";
 import {resolveMentions} from "../service/mentionService.js";
 import {countOpenThreads, findThread, findThreads, loadAndFormat, removeComments} from "../service/commentService.js";
 
-// Everything about a comment is looked up INSIDE the document of the URL (which commentDocumentMiddleware already checked
+// Everything about a comment is looked up INSIDE the document of the URL (which documentContextMiddleware already checked
 // to be a document of this workspace), so a comment id of another document is "not found".
 
 const maxRepliesPerThread = 200;      // a thread is sent whole with every page, so it may not grow without limit
