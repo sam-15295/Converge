@@ -23,9 +23,9 @@ server/
 ├── index.js          entry point: connects the database, starts the server
 ├── app.js            builds the Express app (middlewares + routes)
 ├── config/           settings and external connections (env, database, auth cookie, roles and permissions)
-├── service/          logic that does not belong to one route (Yjs helpers, the live document rooms, who is online, chat message formatting)
-├── socket/           the real-time side: socket login check, the document protocol and the chat
-├── events/           a small in-process event bus
+├── service/          logic that does not belong to one route (Yjs helpers, the live document rooms, who is online, chat messages, mention checks, notifications)
+├── socket/           the real-time side: socket login check, the document protocol, the chat and notifications
+├── events/           a small in-process event bus, and the listener that turns mentions into notifications
 ├── model/            Mongoose models
 ├── validators/       Zod schemas that check what the client sends
 ├── controllers/      the logic of every route
@@ -35,7 +35,7 @@ server/
 client/src/
 ├── pages/            one component per screen
 ├── components/       small reusable UI pieces
-├── features/         feature logic (auth, health, workspace, documents, chat, and the Yjs socket provider)
+├── features/         feature logic (auth, health, workspace, documents, chat, notifications, and the Yjs socket provider)
 ├── hooks/            reusable React hooks
 ├── services/         the API client
 └── utils/            helper functions
@@ -77,6 +77,7 @@ only talks to `localhost:5173`.
 | `BCRYPT_ROUNDS`       | `12`                    | bcrypt cost factor                                 |
 | `AUTH_RATE_LIMIT_MAX` | `10`                    | Failed login/signup attempts per IP per 15 minutes |
 | `CHAT_RATE_LIMIT_MAX` | `30`                    | Chat messages per person per 10 seconds (reactions get twice as many) |
+| `NOTIFICATION_RATE_LIMIT_MAX` | `120`           | Notification requests (list, count, mark as read) per person per minute |
 
 Variables are validated with Zod at startup; the server exits with a clear message if any is invalid.
 
@@ -120,11 +121,15 @@ All endpoints live under `/api`. Every response is JSON with a `message`, plus e
 | `GET /api/workspace/:id/documents/:docId`  | member       | One document's details and what you may do (its content travels over the socket) |
 | `PATCH /api/workspace/:id/documents/:docId`| OWNER, ADMIN, MEMBER | Rename                                       |
 | `DELETE /api/workspace/:id/documents/:docId` | see below  | Delete a document                                    |
-| `GET /api/workspace/:id/messages`          | member       | The latest chat messages, or a page `?before=` / `?after=` a message id (`limit` 1-50) |
+| `GET /api/workspace/:id/messages`          | member       | The latest chat messages, a page `?before=` / `?after=` a message id, or a window `?around=` one (`limit` 1-50) |
 | `POST /api/workspace/:id/messages`         | OWNER, ADMIN, MEMBER | Send a message, or a reply with `parentMessageId`; `mentions: [{userId}]` mentions members (201) |
 | `GET /api/workspace/:id/messages/:messageId/replies` | member | The replies of a message (its thread), same paging |
 | `PUT /api/workspace/:id/messages/:messageId/reactions/:emoji` | OWNER, ADMIN, MEMBER | Add your reaction (safe to repeat) |
 | `DELETE /api/workspace/:id/messages/:messageId/reactions/:emoji` | OWNER, ADMIN, MEMBER | Take your reaction back |
+| `GET /api/notifications`                   | yes          | My notifications, newest first: `?limit&before&unread=true&workspaceId` (cursor paging) |
+| `GET /api/notifications/unread-count`      | yes          | How many of mine are unread                          |
+| `PATCH /api/notifications/:id/read`        | yes (own)    | Mark one as read (safe to repeat)                    |
+| `POST /api/notifications/read-all`         | yes          | Mark all of mine as read                             |
 
 ### Roles and permissions
 
@@ -247,6 +252,32 @@ In the browser the arrow keys move in the list, Enter or Tab (or a click) choose
 - Message text is shown as plain text by React, so nothing a person writes can run as HTML.
 - A mention can only point at a member of the workspace; the name and the visibility of a mention are decided by the server, and the mention list is limited to 20.
 - Limitations: the list of people offered by `@` is loaded when the chat page opens (somebody who joined later appears after a reload, somebody who left is refused by the server with a clear message); names are matched case-sensitively, and a stored name is a snapshot (old messages keep the name a person had then); presence and the rate-limit counters live in one server process (Redis in a later phase); messages cannot be edited or deleted yet; a reaction given while a browser was offline shows up on the recent messages after it reconnects, and on very old ones after a reload.
+
+### Notifications and the mentions inbox
+
+When somebody is mentioned, the mentioned person gets a **notification**: it is saved, it shows on a bell that updates live, and it leads back to the message.
+
+```text
+POST /messages -> save -> event mention:created -> listener saves a Notification -> event notification:created
+                                                                                       -> Socket.IO room user:<id> -> the bell
+```
+
+- A notification **points at its source** (`sourceType`, `sourceId`, `workspaceId`, `senderId`), it does not store display text. The sender's name, the workspace name and a 140-character preview are looked up when it is shown (three queries for a whole list). There is one notification per person per source (unique index), so the same mention can never notify twice, and nobody is notified about their own message. The listener runs after the answer was sent, so a problem there can never make sending a message fail.
+- **The inbox is about me, not about a workspace** (`/api/notifications`, see the table above). The list pages with a cursor like the chat history, can be limited to the unread ones or to one workspace, and marking as read is safe to repeat and keeps the time it was first read.
+- **Privacy:** everything (the list, the previews, the unread count, marking as read) is limited to the workspaces the person is a member of *right now*. Somebody who leaves or is removed stops seeing what was said there, and rejoining brings it back. Somebody else's notification is simply "not found".
+- **Live protocol** (`socket/notificationSocketHandlers.js`). A tab sends `notifications:join`; the answer is `{ok, unreadCount}`. The room name comes from the login of the connection, never from what the browser sends. The tab joins the room *before* the count is read, so a notification that arrives while counting cannot fall in the gap. The server pushes:
+
+| Message | Meaning |
+| --- | --- |
+| `notification:new {notification, unreadCount}` | somebody mentioned you |
+| `notification:updated {notificationId, read, unreadCount}` | one was read (maybe in another tab) |
+| `notification:all-read {unreadCount}` | "mark all as read" in another tab |
+| `notification:unread-count {unreadCount}` | the count changed for another reason (you left a workspace) |
+
+- **The bell** is in a top bar around every logged in page. There is one connection per tab, and every push carries the count the *server* worked out, so the number never depends on counting in the browser. Two tabs of the same person always agree. The dropdown shows the latest notifications, `/notifications` is the mentions inbox (All / Unread, "Load more", "Mark all as read"), and both read themselves again after a lost connection.
+- **Deep links.** A notification leads to `/workspace/:id/chat?message=<id>` (and `&reply=<id>` for a mention inside a thread). The message may be far back in the history, so the chat asks for a *window* around it: `GET /api/workspace/:id/messages?around=<id>` (also for a thread's `/replies`) returns the message with some before and some after it, `limit` in all, and whether there is more on each side. The chat then shows that stretch of the past, scrolls to the message and flashes it, and enters a "you are looking at older messages" mode: live messages are only counted (added, they would appear after a gap), "Load newer messages" reads on, and "Jump to latest" (or sending a message) returns to the present. A link to a message that does not exist opens the chat normally, with an explanation.
+- **Security of notifications:** every endpoint needs a login and is limited to the caller's own notifications (`NOTIFICATION_RATE_LIMIT_MAX` per person per minute); ids are checked before they reach the database; names and previews are shown as text, never as HTML.
+- Limitations: the unread count and the rate limits live in one server process (Redis in a later phase); the mentions inbox is the only kind of notification so far (comments, replies and invitations come with their features); a notification is created even if the person is looking at that chat right now; the count pushed by two notifications that arrive at the same instant can briefly show the smaller number, and the next push or a reload corrects it.
 
 ### Authentication and security
 
