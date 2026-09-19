@@ -4,6 +4,7 @@ import app from "./app.js";
 import env from "./config/env.js";
 import connectDB from "./config/database.js";
 import createSocketServer, {closeSocketServer} from "./socket/socketServer.js";
+import {attachNotificationListeners} from "./events/notificationListeners.js";
 
 const startServer = async ()=>{
     try{
@@ -12,6 +13,9 @@ const startServer = async ()=>{
         // one HTTP server for both the REST API (Express) and the real-time connections (Socket.IO), on the same port
         const server = http.createServer(app);
         const io = createSocketServer(server);
+
+        // mentions become notifications (the listener lives as long as the process, so nothing has to remove it)
+        attachNotificationListeners();
 
         server.listen(env.PORT, ()=>{
             console.log(`Server has started listening at port ${env.PORT}`);
@@ -49,4 +53,4 @@ startServer();
 //middlewares folder --> functions that run before the controllers
 //service folder --> logic that does not belong to one route (Yjs helpers, the live document rooms)
 //socket folder --> the real-time (Socket.IO) side : login check and the document protocol
-//events folder --> a small event bus, so a controller can say what happened without knowing who listens
+//events folder --> a small event bus, so a controller can say what happened without knowing who listens, and the listeners that turn events into notifications
