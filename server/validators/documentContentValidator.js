@@ -13,13 +13,13 @@
 
 const maxDepth = 20;
 const maxNodes = 20000;
-const maxTextLength = 100000;
+export const maxTextLength = 100000;
 
 const blockNodes = ["paragraph", "heading", "blockquote", "bulletList", "orderedList", "codeBlock", "horizontalRule"];
 const inlineNodes = ["text", "hardBreak"];
 
 // for every node : which children it may have, how many it needs at least, and which attributes it may carry
-const nodeRules = {
+export const nodeRules = {
     doc : {children : blockNodes, min : 1, attrs : {}},
     paragraph : {children : inlineNodes, min : 0, attrs : {}},
     heading : {children : inlineNodes, min : 0, attrs : {level : (v)=> Number.isInteger(v) && v >= 1 && v <= 6}},
@@ -41,7 +41,7 @@ const nodeRules = {
 
 const allowedLinkProtocols = ["http:", "https:", "mailto:"];
 
-const isSafeLink = (href)=>{
+export const isSafeLink = (href)=>{
     if(typeof href !== "string" || href.length === 0 || href.length > 2000){
         return false;
     }
@@ -55,7 +55,7 @@ const isSafeLink = (href)=>{
     }
 }
 
-const markRules = {
+export const markRules = {
     bold : {},
     italic : {},
     strike : {},
@@ -71,7 +71,7 @@ const markRules = {
 };
 
 // attributes a mark cannot do without (a link without an href is meaningless)
-const requiredMarkAttrs = {
+export const requiredMarkAttrs = {
     link : ["href"]
 };
 
