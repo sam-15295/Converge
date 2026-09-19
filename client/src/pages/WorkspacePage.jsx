@@ -1,7 +1,9 @@
 import { useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import FullPageMessage from "../components/FullPageMessage";
 import RoleBadge from "../components/RoleBadge";
+import CreateDocumentForm from "../features/documents/CreateDocumentForm";
+import { getDocuments } from "../features/documents/documentApi";
 import InviteForm from "../features/workspace/InviteForm";
 import MemberList from "../features/workspace/MemberList";
 import PendingInvites from "../features/workspace/PendingInvites";
@@ -22,6 +24,8 @@ const WorkspacePage = ()=>{
     const { workspaceId } = useParams();
     const details = useFetch((signal)=> getWorkspace(workspaceId, signal), [workspaceId]);
     const people = useFetch((signal)=> getMembers(workspaceId, signal), [workspaceId]);
+    const documents = useFetch((signal)=> getDocuments(workspaceId, signal), [workspaceId]);
+    const navigate = useNavigate();
     const [invitesRefresh, setInvitesRefresh] = useState(0);
 
     if(details.loading && !details.data) return <FullPageMessage>Loading…</FullPageMessage>;
@@ -56,6 +60,39 @@ const WorkspacePage = ()=>{
                 <RoleBadge role={role} />
             </header>
             {workspace.description && <p className="mt-1 text-slate-600">{workspace.description}</p>}
+
+            <Section title="Documents">
+                {(documents.data?.documents ?? []).length === 0 && !documents.loading && (
+                    <p className="text-sm text-slate-500">
+                        {permissions.includes("document:create")
+                            ? "No documents yet. Create the first one below."
+                            : "No documents yet."}
+                    </p>
+                )}
+                <ul className="divide-y divide-slate-100">
+                    {(documents.data?.documents ?? []).map((document)=> (
+                        <li key={document.id}>
+                            <Link
+                                to={`/workspace/${workspaceId}/document/${document.id}`}
+                                className="flex items-center justify-between py-3 hover:bg-slate-50"
+                            >
+                                <span className="font-medium text-slate-900">{document.title}</span>
+                                <span className="text-sm text-slate-500">
+                                    {document.createdBy} · {new Date(document.updatedAt).toLocaleString()}
+                                </span>
+                            </Link>
+                        </li>
+                    ))}
+                </ul>
+                {permissions.includes("document:create") && (
+                    <div className="mt-4 border-t border-slate-100 pt-4">
+                        <CreateDocumentForm
+                            workspaceId={workspaceId}
+                            onCreated={(document)=> navigate(`/workspace/${workspaceId}/document/${document.id}`)}
+                        />
+                    </div>
+                )}
+            </Section>
 
             <Section title={`Members (${members.length})`}>
                 <MemberList

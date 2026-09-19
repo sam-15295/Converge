@@ -1,1 +1,62 @@
 @import "tailwindcss";
+
+/* The rich-text editor. Tailwind removes the default look of headings and lists, so the editor content gets its own. */
+.editor-content .ProseMirror {
+    min-height: 320px;
+    outline: none;
+}
+.editor-content .ProseMirror > * + * {
+    margin-top: 0.75em;
+}
+.editor-content .ProseMirror h1 {
+    font-size: 1.75rem;
+    font-weight: 700;
+}
+.editor-content .ProseMirror h2 {
+    font-size: 1.4rem;
+    font-weight: 700;
+}
+.editor-content .ProseMirror h3 {
+    font-size: 1.15rem;
+    font-weight: 600;
+}
+.editor-content .ProseMirror ul {
+    list-style: disc;
+    padding-left: 1.5rem;
+}
+.editor-content .ProseMirror ol {
+    list-style: decimal;
+    padding-left: 1.5rem;
+}
+.editor-content .ProseMirror blockquote {
+    border-left: 3px solid #cbd5e1;
+    padding-left: 1rem;
+    color: #475569;
+}
+.editor-content .ProseMirror code {
+    background: #f1f5f9;
+    border-radius: 0.25rem;
+    padding: 0.1rem 0.3rem;
+    font-family: ui-monospace, monospace;
+    font-size: 0.9em;
+}
+.editor-content .ProseMirror pre {
+    background: #0f172a;
+    color: #e2e8f0;
+    border-radius: 0.5rem;
+    padding: 0.75rem 1rem;
+    overflow-x: auto;
+}
+.editor-content .ProseMirror pre code {
+    background: none;
+    padding: 0;
+    color: inherit;
+}
+.editor-content .ProseMirror hr {
+    border: none;
+    border-top: 1px solid #cbd5e1;
+}
+.editor-content .ProseMirror a {
+    color: #1d4ed8;
+    text-decoration: underline;
+}
