@@ -6,6 +6,7 @@ import WorkspaceInvite from "../model/workspaceInviteSchema.js";
 import {outranks} from "../config/permissions.js";
 import {inviteSchema} from "../validators/workspaceValidator.js";
 import formatZodErrors from "../validators/formatZodErrors.js";
+import appEvents from "../events/appEvents.js";
 
 const mongoDuplicateKey = 11000;
 
@@ -237,6 +238,12 @@ export const acceptInvite = async (req, res)=>{
         }
 
         await invite.deleteOne();
+
+        // one line in the workspace activity feed
+        appEvents.emit("member:joined", {
+            workspaceId : String(invite.workspaceId),
+            userId : String(req.user._id)
+        });
 
         res.status(200).json({
             message : "Invitation accepted Successfully",

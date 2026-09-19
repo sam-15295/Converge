@@ -59,7 +59,10 @@ export const permissions = {
     // the history of a document : everybody who may read it may look at the history. Putting an old version back is an
     // EDIT of the document, so exactly the people who may edit it may do that.
     "version:view" : ["OWNER", "ADMIN", "MEMBER", "VIEWER"],
-    "version:restore" : ["OWNER", "ADMIN", "MEMBER"]
+    "version:restore" : ["OWNER", "ADMIN", "MEMBER"],
+
+    // what happened in the workspace : everybody who belongs to it may read it
+    "activity:view" : ["OWNER", "ADMIN", "MEMBER", "VIEWER"]
 };
 
 export const can = (role, permission)=>{

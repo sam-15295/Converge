@@ -2,6 +2,7 @@ import express from "express";
 import {createWorkspace, getMyWorkspaces, getWorkspace, updateWorkspace, deleteWorkspace} from "../controllers/workspaceController.js";
 import {listMembers, changeMemberRole, removeMember, leaveWorkspace} from "../controllers/workspaceMemberController.js";
 import {createInvite, listWorkspaceInvites, revokeInvite} from "../controllers/workspaceInviteController.js";
+import {listActivity} from "../controllers/activityController.js";
 import documentRouter from "./documentRouter.js";
 import messageRouter from "./messageRouter.js";
 import authUserMiddleware from "../middlewares/authUserMiddleware.js";
@@ -40,5 +41,8 @@ workspaceRouter.use("/:workspaceId/messages", messageRouter);
 
 // leaving needs no special permission : every member may leave (except the owner, see the controller)
 workspaceRouter.post("/:workspaceId/leave", leaveWorkspace);
+
+// what happened in the workspace (the activity feed)
+workspaceRouter.get("/:workspaceId/activity", requirePermissionMiddleware("activity:view"), listActivity);
 
 export default workspaceRouter;

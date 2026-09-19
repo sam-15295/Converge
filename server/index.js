@@ -5,6 +5,7 @@ import env from "./config/env.js";
 import connectDB from "./config/database.js";
 import createSocketServer, {closeSocketServer} from "./socket/socketServer.js";
 import {attachNotificationListeners} from "./events/notificationListeners.js";
+import {attachActivityListeners} from "./events/activityListeners.js";
 
 const startServer = async ()=>{
     try{
@@ -14,8 +15,10 @@ const startServer = async ()=>{
         const server = http.createServer(app);
         const io = createSocketServer(server);
 
-        // mentions become notifications (the listener lives as long as the process, so nothing has to remove it)
+        // mentions become notifications, and what happens becomes the activity feed
+        // (the listeners live as long as the process, so nothing has to remove them)
         attachNotificationListeners();
+        attachActivityListeners();
 
         server.listen(env.PORT, ()=>{
             console.log(`Server has started listening at port ${env.PORT}`);

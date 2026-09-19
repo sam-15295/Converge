@@ -6,6 +6,7 @@ import formatZodErrors from "../validators/formatZodErrors.js";
 import appEvents from "../events/appEvents.js";
 import {removeCommentsOfDocument} from "../service/commentService.js";
 import {removeVersionsOfDocument} from "../service/versionService.js";
+import {removeActivitiesOfDocument} from "../service/activityService.js";
 
 // what the document list shows (never the content, it can be large)
 const formatDocumentSummary = (document, membership, user)=>{
@@ -53,6 +54,14 @@ export const createDocument = async (req, res)=>{
             workspaceId : req.membership.workspaceId,
             title : result.data.title,
             createdBy : req.user._id
+        });
+
+        // one line in the workspace activity feed (the listener does that; this controller knows nothing about it)
+        appEvents.emit("document:created", {
+            workspaceId : String(document.workspaceId),
+            documentId : String(document._id),
+            createdBy : String(req.user._id),
+            title : document.title
         });
 
         res.status(201).json({
@@ -175,8 +184,9 @@ export const deleteDocument = async (req, res)=>{
             appEvents.emit("notification:recount", {recipientId});
         }
 
-        // and its history : a version of a document that no longer exists could never be opened or restored
+        // and its history, and the lines about it in the activity feed : neither could point anywhere any more
         await removeVersionsOfDocument(document._id);
+        await removeActivitiesOfDocument(document._id);
 
         // people who have it open are sent away (the socket layer listens)
         appEvents.emit("document:deleted", {workspaceId : document.workspaceId, documentId : document._id});
