@@ -8,6 +8,8 @@ import DocumentCommentsProvider from "../features/comments/DocumentCommentsProvi
 import DocumentEditor from "../features/documents/DocumentEditor";
 import DocumentTitle from "../features/documents/DocumentTitle";
 import { deleteDocument, getDocument } from "../features/documents/documentApi";
+import HistoryButton from "../features/versions/HistoryButton";
+import VersionHistoryDialog from "../features/versions/VersionHistoryDialog";
 import { getMembers } from "../features/workspace/workspaceApi";
 import { useFetch } from "../hooks/useFetch";
 
@@ -34,6 +36,7 @@ const DocumentPage = ()=>{
     // works, only the suggestions after "@" are missing until they arrive.
     const people = useFetch((signal)=> getMembers(workspaceId, signal), [workspaceId]);
     const [deleteError, setDeleteError] = useState(null);
+    const [historyOpen, setHistoryOpen] = useState(false);
 
     if(details.loading && !details.data) return <FullPageMessage>Loading…</FullPageMessage>;
 
@@ -95,6 +98,7 @@ const DocumentPage = ()=>{
                                 canEdit={canEdit}
                             />
                         </div>
+                        <HistoryButton open={historyOpen} onClick={()=> setHistoryOpen(true)} />
                         <CommentsButton />
                     </div>
 
@@ -123,6 +127,16 @@ const DocumentPage = ()=>{
                         </div>
                     )}
                 </DocumentColumns>
+
+                {/* Restoring a version does not have to tell the editor anything : the server sends the change to
+                    everybody who has the document open, and this tab is one of them. */}
+                <VersionHistoryDialog
+                    workspaceId={workspaceId}
+                    documentId={documentId}
+                    canRestore={permissions.includes("version:restore")}
+                    open={historyOpen}
+                    onClose={()=> setHistoryOpen(false)}
+                />
             </main>
         </DocumentCommentsProvider>
     );
