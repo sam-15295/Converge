@@ -8,8 +8,9 @@ import { useWorkspaceChat } from "./useWorkspaceChat";
 
 // One workspace's chat : who is online, the messages, the box to write in, and the open thread.
 // The page gives this a `key` of the workspace id, so opening another workspace starts from a clean state.
-const ChatRoom = ({ workspaceId, currentUserId, members })=>{
-    const chat = useWorkspaceChat(workspaceId, currentUserId);
+// focus : { messageId, replyId, key } when the chat was opened from a link (see useWorkspaceChat).
+const ChatRoom = ({ workspaceId, currentUserId, members, focus })=>{
+    const chat = useWorkspaceChat(workspaceId, currentUserId, focus);
 
     const names = useMemo(()=> Object.fromEntries(members.map((member)=> [member.userId, member.name])), [members]);
     const openParent = chat.thread ? chat.messages.find((message)=> message.id === chat.thread.parentId) : null;
@@ -40,6 +41,21 @@ const ChatRoom = ({ workspaceId, currentUserId, members })=>{
                     {chat.status === "connecting"
                         ? "Connecting…"
                         : "You are offline. Trying to reconnect : what you missed will appear when you are back."}
+                </p>
+            )}
+
+            {chat.detached && (
+                <p
+                    role="status"
+                    className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-blue-900"
+                >
+                    <span>
+                        You are looking at older messages
+                        {chat.missed > 0 ? ` : ${chat.missed} new ${chat.missed === 1 ? "message has" : "messages have"} arrived since` : ""}.
+                    </span>
+                    <button type="button" onClick={chat.jumpToLatest} className="font-medium underline">
+                        Jump to latest
+                    </button>
                 </p>
             )}
 

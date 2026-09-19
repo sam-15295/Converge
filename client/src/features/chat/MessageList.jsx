@@ -1,16 +1,27 @@
 import { useState } from "react";
 import MessageItem from "./MessageItem";
+import { useFocusScroll } from "./useFocusScroll";
 import { useMessageScroll } from "./useMessageScroll";
 
 // The scrolling list of the main chat, oldest at the top. Scrolling up to the top offers the older history.
+// When the chat was opened from a link, a stretch of the past is shown : the linked message is scrolled to and flashes,
+// and the newer messages are one button away at the bottom.
 const MessageList = ({ chat, currentUserId, canReact, names })=>{
-    const { listRef, handleScroll } = useMessageScroll(chat.messages, currentUserId);
+    const { listRef, handleScroll } = useMessageScroll(chat.messages, currentUserId, !chat.detached);
+    useFocusScroll(listRef, chat.focus);
     const [loadingOlder, setLoadingOlder] = useState(false);
+    const [loadingNewer, setLoadingNewer] = useState(false);
 
     const showOlder = async ()=>{
         setLoadingOlder(true);
         await chat.loadOlder();
         setLoadingOlder(false);
+    }
+
+    const showNewer = async ()=>{
+        setLoadingNewer(true);
+        await chat.loadNewer();
+        setLoadingNewer(false);
     }
 
     return (
@@ -43,19 +54,39 @@ const MessageList = ({ chat, currentUserId, canReact, names })=>{
             )}
 
             <ul className="divide-y divide-slate-100">
-                {chat.messages.map((message)=> (
-                    <MessageItem
-                        key={message.id}
-                        message={message}
-                        currentUserId={currentUserId}
-                        canReact={canReact}
-                        canReply={chat.canSend}
-                        names={names}
-                        onToggleReaction={chat.toggleReaction}
-                        onOpenThread={chat.openThread}
-                    />
-                ))}
+                {chat.messages.map((message)=>{
+                    const focused = chat.focus?.id === message.id;
+
+                    return (
+                        <MessageItem
+                            // the token makes the focused message a NEW element each time, so its flash plays again
+                            key={focused ? `${message.id}:${chat.focus.token}` : message.id}
+                            domId={`message-${message.id}`}
+                            highlighted={focused}
+                            message={message}
+                            currentUserId={currentUserId}
+                            canReact={canReact}
+                            canReply={chat.canSend}
+                            names={names}
+                            onToggleReaction={chat.toggleReaction}
+                            onOpenThread={chat.openThread}
+                        />
+                    );
+                })}
             </ul>
+
+            {chat.hasMoreNewer && (
+                <div className="py-2 text-center">
+                    <button
+                        type="button"
+                        disabled={loadingNewer}
+                        onClick={showNewer}
+                        className="rounded-md border border-slate-300 px-3 py-1 text-sm text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+                    >
+                        {loadingNewer ? "Loading…" : "Load newer messages"}
+                    </button>
+                </div>
+            )}
         </div>
     );
 }

@@ -28,7 +28,8 @@ const MessageText = ({ content, mentions, currentUserId })=>{
 
 // One message.
 // onOpenThread is left out for a message that is already inside a thread (replies have no replies).
-const MessageItem = ({ message, currentUserId, canReact, canReply, names, onToggleReaction, onOpenThread })=>{
+// domId : the id in the page, so a link can scroll to the message. highlighted : it flashes (the message a link pointed at).
+const MessageItem = ({ message, currentUserId, canReact, canReply, names, onToggleReaction, onOpenThread, domId, highlighted })=>{
     const isMine = message.sender.id === currentUserId;
     const replies = message.replyCount;
     const mentionsMe = message.mentions.some((mention)=> mention.userId === currentUserId);
@@ -37,7 +38,7 @@ const MessageItem = ({ message, currentUserId, canReact, canReply, names, onTogg
     const showThreadButton = onOpenThread && (replies > 0 || canReply);
 
     return (
-        <li className={`flex gap-3 px-1 py-2 ${mentionsMe ? "rounded-md bg-amber-50" : ""}`}>
+        <li id={domId} className={`flex gap-3 px-1 py-2 ${mentionsMe ? "rounded-md bg-amber-50" : ""} ${highlighted ? "flash-highlight" : ""}`}>
             <span
                 aria-hidden="true"
                 className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-200 text-sm font-semibold text-slate-700"

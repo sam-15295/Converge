@@ -1,4 +1,5 @@
-import { Link, useParams } from "react-router-dom";
+import { useMemo } from "react";
+import { Link, useLocation, useParams, useSearchParams } from "react-router-dom";
 import FullPageMessage from "../components/FullPageMessage";
 import RoleBadge from "../components/RoleBadge";
 import { useAuth } from "../features/auth/AuthContext";
@@ -6,9 +7,23 @@ import ChatRoom from "../features/chat/ChatRoom";
 import { getMembers, getWorkspace } from "../features/workspace/workspaceApi";
 import { useFetch } from "../hooks/useFetch";
 
+const isId = (value)=> /^[a-f0-9]{24}$/i.test(value ?? "");
+
 const ChatPage = ()=>{
     const { workspaceId } = useParams();
     const { user } = useAuth();
+    const [params] = useSearchParams();
+    const location = useLocation();
+
+    // A link from a notification : /chat?message=<id>  (and &reply=<id> when the mention is inside a thread).
+    // The location key changes with every visit, so following the same link again works again.
+    const messageId = isId(params.get("message")) ? params.get("message").toLowerCase() : null;
+    const replyId = messageId && isId(params.get("reply")) ? params.get("reply").toLowerCase() : null;
+    const focus = useMemo(
+        ()=> (messageId ? { messageId, replyId, key: location.key } : null),
+        [messageId, replyId, location.key]
+    );
+
     const details = useFetch((signal)=> getWorkspace(workspaceId, signal), [workspaceId]);
     const people = useFetch((signal)=> getMembers(workspaceId, signal), [workspaceId]);
 
@@ -51,6 +66,7 @@ const ChatPage = ()=>{
                 workspaceId={workspaceId}
                 currentUserId={user.id}
                 members={people.data.members}
+                focus={focus}
             />
         </main>
     );

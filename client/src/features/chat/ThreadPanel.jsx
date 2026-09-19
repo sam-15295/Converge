@@ -1,19 +1,28 @@
 import { useState } from "react";
 import MessageComposer from "./MessageComposer";
 import MessageItem from "./MessageItem";
+import { useFocusScroll } from "./useFocusScroll";
 import { useMessageScroll } from "./useMessageScroll";
 
 // The replies to one message, next to the main chat. There is only ever one level of replies : a reply cannot be
 // answered again, so nothing here has a "Reply" button.
 const ThreadPanel = ({ chat, parent, currentUserId, canReact, names, members })=>{
     const { thread } = chat;
-    const { listRef, handleScroll } = useMessageScroll(thread.messages, currentUserId);
+    const { listRef, handleScroll } = useMessageScroll(thread.messages, currentUserId, !thread.hasMoreNewer);
+    useFocusScroll(listRef, thread.focus);
     const [loadingOlder, setLoadingOlder] = useState(false);
+    const [loadingNewer, setLoadingNewer] = useState(false);
 
     const showOlder = async ()=>{
         setLoadingOlder(true);
         await chat.loadOlderReplies();
         setLoadingOlder(false);
+    }
+
+    const showNewer = async ()=>{
+        setLoadingNewer(true);
+        await chat.loadNewerReplies();
+        setLoadingNewer(false);
     }
 
     return (
@@ -61,17 +70,36 @@ const ThreadPanel = ({ chat, parent, currentUserId, canReact, names, members })=
                 )}
 
                 <ul aria-label="Replies" className="divide-y divide-slate-100">
-                    {thread.messages.map((reply)=> (
-                        <MessageItem
-                            key={reply.id}
-                            message={reply}
-                            currentUserId={currentUserId}
-                            canReact={canReact}
-                            names={names}
-                            onToggleReaction={chat.toggleReaction}
-                        />
-                    ))}
+                    {thread.messages.map((reply)=>{
+                        const focused = thread.focus?.id === reply.id;
+
+                        return (
+                            <MessageItem
+                                key={focused ? `${reply.id}:${thread.focus.token}` : reply.id}
+                                domId={`message-${reply.id}`}
+                                highlighted={focused}
+                                message={reply}
+                                currentUserId={currentUserId}
+                                canReact={canReact}
+                                names={names}
+                                onToggleReaction={chat.toggleReaction}
+                            />
+                        );
+                    })}
                 </ul>
+
+                {thread.hasMoreNewer && (
+                    <div className="py-2 text-center">
+                        <button
+                            type="button"
+                            disabled={loadingNewer}
+                            onClick={showNewer}
+                            className="rounded-md border border-slate-300 px-3 py-1 text-sm text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+                        >
+                            {loadingNewer ? "Loading…" : "Load newer replies"}
+                        </button>
+                    </div>
+                )}
             </div>
 
             <div className="border-t border-slate-200 p-3">

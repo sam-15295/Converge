@@ -1,5 +1,26 @@
 @import "tailwindcss";
 
+/* The message a link points at flashes for a moment, so the eye finds it. */
+@keyframes flash-highlight {
+    from {
+        box-shadow: 0 0 0 3px rgb(59 130 246 / 0.55);
+        background-color: rgb(219 234 254);
+    }
+    to {
+        box-shadow: 0 0 0 3px rgb(59 130 246 / 0);
+    }
+}
+.flash-highlight {
+    animation: flash-highlight 2.6s ease-out;
+    border-radius: 0.375rem;
+}
+@media (prefers-reduced-motion: reduce) {
+    .flash-highlight {
+        animation: none;
+        background-color: rgb(219 234 254);
+    }
+}
+
 /* The rich-text editor. Tailwind removes the default look of headings and lists, so the editor content gets its own. */
 .editor-content .ProseMirror {
     min-height: 320px;

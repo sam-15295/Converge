@@ -13,14 +13,23 @@ const pageSize = 30;
 // Messages are WRITTEN with the REST API (one place for validation and permissions) and READ live from the socket.
 // So after sending, the answer of the REST call and the same message coming back over the socket both arrive :
 // the reducer recognises it by its id and shows it once.
-export const useWorkspaceChat = (workspaceId, userId)=>{
+//
+// focus : { messageId, replyId, key } when the chat was opened FROM A LINK (a notification). Instead of the newest messages,
+// a window around that message is shown, scrolled to and highlighted (and its thread opened, for a reply). `key` is different
+// for every visit, so following the same link twice works twice.
+export const useWorkspaceChat = (workspaceId, userId, focus)=>{
     const [state, dispatch] = useReducer(chatReducer, initialChatState);
 
     // The socket callbacks live for a long time, so they read the newest state from here, not from the render they were created in
     const latest = useRef(state);
+    const focusRef = useRef(focus);
     useEffect(()=>{
         latest.current = state;
+        focusRef.current = focus;
     });
+
+    // the link that was already followed (so a reconnection does not open it again)
+    const handledFocus = useRef(null);
 
     // After a lost connection, the newest message we HAD (so we can tell whether the history we fetch now connects to it).
     //   null       nothing loaded yet
@@ -40,7 +49,7 @@ export const useWorkspaceChat = (workspaceId, userId)=>{
             const connects = !hasMore || messages.some((message)=> message.id === cursor);
             const mode = !cursor ? "latest" : connects ? "newer" : "replace";
 
-            dispatch({ type: "history", mode, messages, hasMore });
+            dispatch({ type: "history", mode, messages, hasMore, token: Date.now() });
             resumeAfter.current = undefined;
         }
         catch(err){
@@ -61,14 +70,46 @@ export const useWorkspaceChat = (workspaceId, userId)=>{
         }
     }, [workspaceId]);
 
+    // Reading on, out of a stretch of the past : the page after the newest message we have
+    const loadNewer = useCallback(async ()=>{
+        const newest = latest.current.messages.at(-1);
+        if(!newest) return;
+
+        try{
+            const { messages, hasMore } = await getMessages(workspaceId, { after: newest.id, limit: pageSize });
+            dispatch({ type: "history", mode: "forward", messages, hasMore });
+        }
+        catch(err){
+            dispatch({ type: "problem", message: `Could not load newer messages : ${err.message}` });
+        }
+    }, [workspaceId]);
+
+    // Back to the present : the newest messages replace what is on the screen
+    const jumpToLatest = useCallback(async ()=>{
+        try{
+            const { messages, hasMore } = await getMessages(workspaceId, { limit: pageSize });
+            dispatch({ type: "history", mode: "replace", messages, hasMore, token: Date.now() });
+            resumeAfter.current = undefined;
+        }
+        catch(err){
+            dispatch({ type: "problem", message: `Could not load the newest messages : ${err.message}` });
+        }
+    }, [workspaceId]);
+
     // ---------- threads ----------
 
-    const openThread = useCallback(async (parentId)=>{
+    // replyId : open the thread AT that reply (a window around it, scrolled to and highlighted), otherwise at its newest replies
+    const openThread = useCallback(async (parentId, replyId)=>{
         dispatch({ type: "openThread", parentId });
 
         try{
-            const { messages, hasMore } = await getReplies(workspaceId, parentId, { limit: pageSize });
-            dispatch({ type: "threadHistory", parentId, mode: "latest", messages, hasMore });
+            if(replyId){
+                const { messages, hasMoreOlder, hasMoreNewer } = await getReplies(workspaceId, parentId, { around: replyId, limit: pageSize });
+                dispatch({ type: "threadWindow", parentId, messages, hasMoreOlder, hasMoreNewer, focusId: replyId, token: Date.now() });
+            } else {
+                const { messages, hasMore } = await getReplies(workspaceId, parentId, { limit: pageSize });
+                dispatch({ type: "threadHistory", parentId, mode: "latest", messages, hasMore });
+            }
         }
         catch(err){
             dispatch({ type: "problem", message: `Could not load the replies : ${err.message}` });
@@ -91,10 +132,25 @@ export const useWorkspaceChat = (workspaceId, userId)=>{
         }
     }, [workspaceId]);
 
+    const loadNewerReplies = useCallback(async ()=>{
+        const open = latest.current.thread;
+        const newest = open?.messages.at(-1);
+        if(!newest) return;
+
+        try{
+            const { messages, hasMore } = await getReplies(workspaceId, open.parentId, { after: newest.id, limit: pageSize });
+            dispatch({ type: "threadHistory", parentId: open.parentId, mode: "forward", messages, hasMore });
+        }
+        catch(err){
+            dispatch({ type: "problem", message: `Could not load newer replies : ${err.message}` });
+        }
+    }, [workspaceId]);
+
     // after a reconnection the open thread may have missed replies : read its latest page again
+    // (a thread that shows a stretch of its past is left as it is)
     const refreshThread = useCallback(async ()=>{
         const open = latest.current.thread;
-        if(!open) return;
+        if(!open || open.hasMoreNewer) return;
 
         try{
             const { messages, hasMore } = await getReplies(workspaceId, open.parentId, { limit: pageSize });
@@ -104,6 +160,32 @@ export const useWorkspaceChat = (workspaceId, userId)=>{
             dispatch({ type: "problem", message: `Could not refresh the replies : ${err.message}` });
         }
     }, [workspaceId]);
+
+    // ---------- opening a message from a link ----------
+
+    // A window around the message replaces the list (a link can point far back in the history). For a reply the window is
+    // around the message it answers, and its thread is opened at the reply. If the message cannot be found, the chat
+    // opens as usual, with an explanation.
+    const applyFocus = useCallback(async (target)=>{
+        handledFocus.current = target.key;
+
+        try{
+            const { messages, hasMoreOlder, hasMoreNewer } = await getMessages(workspaceId, { around: target.messageId, limit: pageSize });
+            dispatch({ type: "window", messages, hasMoreOlder, hasMoreNewer, focusId: target.replyId ? null : target.messageId, token: Date.now() });
+            resumeAfter.current = undefined;
+
+            if(target.replyId) await openThread(target.messageId, target.replyId);
+        }
+        catch(err){
+            await loadLatest();
+            dispatch({ type: "problem", message: err.status === 404 ? "That message could not be found." : `Could not open the message : ${err.message}` });
+        }
+    }, [workspaceId, openThread, loadLatest]);
+
+    // a link followed while the chat is already open (the connection has joined already)
+    useEffect(()=>{
+        if(focus?.messageId && handledFocus.current !== focus.key && latest.current.status === "connected") applyFocus(focus);
+    }, [focus, applyFocus]);
 
     // ---------- the connection ----------
 
@@ -133,7 +215,12 @@ export const useWorkspaceChat = (workspaceId, userId)=>{
                 dispatch({ type: "access", canSend: answer.canSend });
                 dispatch({ type: "presenceList", userIds: answer.onlineUserIds });
                 dispatch({ type: "status", status: "connected" });
-                loadLatest();
+
+                // A link that was not followed yet opens its window. Otherwise the newest messages are read, except when the
+                // screen shows a stretch of the past (it stays as it is, a reconnection must not pull the reader away).
+                const target = focusRef.current;
+                if(target?.messageId && handledFocus.current !== target.key) applyFocus(target);
+                else if(!latest.current.detached) loadLatest();
                 refreshThread();
             });
         });
@@ -174,7 +261,7 @@ export const useWorkspaceChat = (workspaceId, userId)=>{
             clearTimeout(retryTimer);
             socket.disconnect();
         };
-    }, [workspaceId, loadLatest, refreshThread]);
+    }, [workspaceId, loadLatest, refreshThread, applyFocus]);
 
     // ---------- actions ----------
 
@@ -183,7 +270,11 @@ export const useWorkspaceChat = (workspaceId, userId)=>{
         const { chatMessage, parent } = await sendMessage(workspaceId, { content, parentMessageId, mentions });
         dispatch({ type: "received", chatMessage });
         if(parent) dispatch({ type: "updated", chatMessage: parent }); // the reply count of the message it answers
-    }, [workspaceId]);
+
+        // Writing while looking at the past : the new message would appear after a gap, so go to the present where it is
+        if(!parentMessageId && latest.current.detached) jumpToLatest();
+        if(parentMessageId && latest.current.thread?.hasMoreNewer) refreshThread();
+    }, [workspaceId, jumpToLatest, refreshThread]);
 
     // Clicking an emoji you already used takes it back, otherwise it adds it
     const toggleReaction = useCallback(async (message, emoji)=>{
@@ -206,9 +297,12 @@ export const useWorkspaceChat = (workspaceId, userId)=>{
         ...state,
         send,
         loadOlder,
+        loadNewer,
+        jumpToLatest,
         openThread,
         closeThread,
         loadOlderReplies,
+        loadNewerReplies,
         toggleReaction,
         reload: loadLatest,
         dismissProblem
