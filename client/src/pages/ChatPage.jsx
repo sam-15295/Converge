@@ -36,7 +36,7 @@ const ChatPage = ()=>{
     const { workspace, role } = details.data;
 
     return (
-        <main className="mx-auto flex h-dvh max-w-5xl flex-col px-4 py-6">
+        <main className="mx-auto flex h-[calc(100dvh-3rem)] max-w-5xl flex-col px-4 py-6">
             <Link to={`/workspace/${workspaceId}`} className="text-sm text-slate-600 underline">
                 ← {workspace.name}
             </Link>

@@ -50,7 +50,7 @@ const WorkspacePage = ()=>{
     const members = people.data?.members ?? [];
 
     return (
-        <main className="mx-auto min-h-screen max-w-2xl px-4 py-10">
+        <main className="mx-auto min-h-[calc(100dvh-3rem)] max-w-2xl px-4 py-10">
             <Link to="/" className="text-sm text-slate-600 underline">
                 ← Your workspaces
             </Link>

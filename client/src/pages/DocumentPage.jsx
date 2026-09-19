@@ -50,7 +50,7 @@ const DocumentPage = ()=>{
     }
 
     return (
-        <main className="mx-auto min-h-screen max-w-3xl px-4 py-10">
+        <main className="mx-auto min-h-[calc(100dvh-3rem)] max-w-3xl px-4 py-10">
             <Link to={`/workspace/${workspaceId}`} className="text-sm text-slate-600 underline">
                 ← Back to the workspace
             </Link>

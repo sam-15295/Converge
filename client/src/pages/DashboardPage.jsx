@@ -27,7 +27,7 @@ const DashboardPage = ()=>{
     const list = workspaces.data?.workspaces ?? [];
 
     return (
-        <main className="mx-auto min-h-screen max-w-2xl px-4 py-10">
+        <main className="mx-auto min-h-[calc(100dvh-3rem)] max-w-2xl px-4 py-10">
             <header className="flex items-start justify-between">
                 <div>
                     <h1 className="text-2xl font-bold text-slate-900">Welcome, {user.name}</h1>

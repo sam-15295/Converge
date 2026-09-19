@@ -2,11 +2,13 @@ import { lazy, Suspense } from "react";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 import AuthProvider from "./features/auth/AuthProvider";
 import ProtectedRoute from "./features/auth/ProtectedRoute";
+import AppLayout from "./pages/AppLayout";
 import PublicOnlyRoute from "./features/auth/PublicOnlyRoute";
 import ChatPage from "./pages/ChatPage";
 import DashboardPage from "./pages/DashboardPage";
 import WorkspacePage from "./pages/WorkspacePage";
 import LoginPage from "./pages/LoginPage";
+import NotificationsPage from "./pages/NotificationsPage";
 import FullPageMessage from "./components/FullPageMessage";
 import NotFoundPage from "./pages/NotFoundPage";
 import SignupPage from "./pages/SignupPage";
@@ -30,10 +32,14 @@ const App = ()=>{
 
                         {/* Only for logged-in users */}
                         <Route element={<ProtectedRoute />}>
-                            <Route path="/" element={<DashboardPage />} />
-                            <Route path="/workspace/:workspaceId" element={<WorkspacePage />} />
-                            <Route path="/workspace/:workspaceId/chat" element={<ChatPage />} />
-                            <Route path="/workspace/:workspaceId/document/:documentId" element={<DocumentPage />} />
+                            {/* the top bar with the notification bell is around all of these */}
+                            <Route element={<AppLayout />}>
+                                <Route path="/" element={<DashboardPage />} />
+                                <Route path="/notifications" element={<NotificationsPage />} />
+                                <Route path="/workspace/:workspaceId" element={<WorkspacePage />} />
+                                <Route path="/workspace/:workspaceId/chat" element={<ChatPage />} />
+                                <Route path="/workspace/:workspaceId/document/:documentId" element={<DocumentPage />} />
+                            </Route>
                         </Route>
 
                         {/* Anyone */}
