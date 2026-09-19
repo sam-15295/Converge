@@ -3,7 +3,7 @@
 A real-time collaborative workspace for teams: shared documents (Yjs), workspace chat,
 @mentions, notifications, comments and version history.
 
-> **Status:** Phase 9 - document comments complete (after real-time editing, chat, mentions and notifications). Features are being built one phase at a time.
+> **Status:** Phase 10 - version history and the workspace activity feed complete (after real-time editing, chat, mentions, notifications and comments). Features are being built one phase at a time.
 
 ## Tech stack
 
@@ -23,9 +23,9 @@ server/
 ├── index.js          entry point: connects the database, starts the server
 ├── app.js            builds the Express app (middlewares + routes)
 ├── config/           settings and external connections (env, database, auth cookie, roles and permissions)
-├── service/          logic that does not belong to one route (Yjs helpers, the live document rooms, who is online, chat messages, comment threads, mention checks, notifications)
+├── service/          logic that does not belong to one route (Yjs helpers, the live document rooms, who is online, chat messages, comment threads, mention checks, notifications, version snapshots, the activity feed)
 ├── socket/           the real-time side: socket login check, the document protocol, the chat, the comments and notifications
-├── events/           a small in-process event bus, and the listener that turns mentions into notifications
+├── events/           a small in-process event bus, and the listeners that turn mentions into notifications and events into the activity feed
 ├── model/            Mongoose models
 ├── validators/       Zod schemas that check what the client sends
 ├── controllers/      the logic of every route
@@ -35,7 +35,7 @@ server/
 client/src/
 ├── pages/            one component per screen
 ├── components/       small reusable UI pieces
-├── features/         feature logic (auth, health, workspace, documents, chat, comments, notifications, the shared @mention box, and the Yjs socket provider)
+├── features/         feature logic (auth, health, workspace, documents, chat, comments, notifications, versions, activity, the shared @mention box, and the Yjs socket provider)
 ├── hooks/            reusable React hooks
 ├── services/         the API client
 └── utils/            helper functions
@@ -78,6 +78,8 @@ only talks to `localhost:5173`.
 | `AUTH_RATE_LIMIT_MAX` | `10`                    | Failed login/signup attempts per IP per 15 minutes |
 | `CHAT_RATE_LIMIT_MAX` | `30`                    | Chat messages per person per 10 seconds (reactions get twice as many). Comments get the same number, counted separately |
 | `NOTIFICATION_RATE_LIMIT_MAX` | `120`           | Notification requests (list, count, mark as read) per person per minute |
+| `VERSION_QUIET_SECONDS` | `120`                 | How long a document must be quiet before its editing session counts as finished |
+| `VERSION_MIN_GAP_SECONDS` | `300`               | The shortest time between two versions of the same document |
 
 Variables are validated with Zod at startup; the server exits with a clear message if any is invalid.
 
@@ -131,6 +133,10 @@ All endpoints live under `/api`. Every response is JSON with a `message`, plus e
 | `POST /api/workspace/:id/documents/:docId/comments` | OWNER, ADMIN, MEMBER | Write a comment, or a reply with `parentCommentId`; `mentions: [{userId}]` mentions members (201) |
 | `POST .../comments/:commentId/resolve`, `/reopen` | OWNER, ADMIN, MEMBER | Resolve or reopen a thread (safe to repeat) |
 | `DELETE .../comments/:commentId`           | see below    | Delete a comment; deleting the first comment of a thread deletes the whole thread |
+| `GET /api/workspace/:id/documents/:docId/versions` | member | The history of a document, newest first: `?limit&before` (cursor paging) |
+| `GET /api/workspace/:id/documents/:docId/versions/:versionId` | member | One version, with the text it holds |
+| `POST .../versions/:versionId/restore`     | OWNER, ADMIN, MEMBER | Put that version back into the live document (201) |
+| `GET /api/workspace/:id/activity`          | member       | What happened in the workspace, newest first: `?limit&before` |
 | `GET /api/notifications`                   | yes          | My notifications, newest first: `?limit&before&unread=true&workspaceId` (cursor paging) |
 | `GET /api/notifications/unread-count`      | yes          | How many of mine are unread                          |
 | `PATCH /api/notifications/:id/read`        | yes (own)    | Mark one as read (safe to repeat)                    |
@@ -158,6 +164,9 @@ Every workspace route first checks that you are a member (a non-member gets `404
 | Write, reply, resolve, reopen   |  yes  |  yes  |  yes   |   -    |
 | Delete any comment              |  yes  |  yes  |   -    |   -    |
 | Delete a comment you wrote      |  yes  |  yes  |  yes   |   -    |
+| Read a document's version history |  yes  |  yes  |  yes   |  yes   |
+| Put an older version back       |  yes  |  yes  |  yes   |   -    |
+| Read the workspace activity feed |  yes  |  yes  |  yes   |  yes   |
 
 One more rule sits on top: **you can only manage people who rank below you**, and only give roles below your own.
 So an ADMIN cannot change or remove another ADMIN or the OWNER, and nobody can make someone OWNER.
@@ -329,6 +338,83 @@ A tab has one document's comments open at a time. **Reconnecting:** the browser 
 - Removing a member, leaving, deleting the document or the workspace closes the open comments of the people concerned. A role change keeps a reader and only tells the browser whether it may still write.
 - Comment text, names and the document title in notifications are shown as text by React, never as HTML. Comments have their own rate limit (`CHAT_RATE_LIMIT_MAX` per person per 10 seconds, counted separately from chat) and joining is limited to 10 per 10 seconds per connection.
 - Limitations: comments belong to the whole document, they are not attached to a text selection; a comment cannot be edited, only deleted; nobody is notified that somebody replied to their thread (only mentions notify); the people offered by `@` are loaded when the page opens; on a narrow screen the panel sits below the editor; a draft that was not sent is lost if the connection drops while it is being written (the box is replaced by an explanation while offline, like in the chat); an ADMIN promoted or demoted while the page is open sees the Delete buttons change after a reload (the server always enforces the real role); the counters of the rate limits live in one server process (Redis in a later phase).
+
+### Version history
+
+Every document keeps a history, and an old version can be put back while people are editing.
+
+**A version is a snapshot of an editing session, not of a keystroke.** Saving a row per change would be enormous and
+unreadable. Instead `service/versionScheduler.js` waits: a version is written when a document has been edited and has
+then been quiet for `VERSION_QUIET_SECONDS`, or as soon as the last person closes it, and never more often than
+`VERSION_MIN_GAP_SECONDS` per document. A session that ends inside that gap is **delayed, not dropped** - the timer
+moves to the end of the gap. Everybody who edited since the previous version is credited, even if the document was
+closed and reopened in between. The newest 50 versions per document are kept.
+
+```text
+somebody types -> quiet for a while -> read the document -> one version (who edited, when, the title then)
+everybody left -> write it as soon as the gap allows
+```
+
+Only the Yjs state is stored. The readable tree is worked out when somebody opens a version, so the two can never
+disagree and the history takes half the space. The scheduler reads the document from **MongoDB**, never from the live
+room, so it knows nothing about rooms; the room registers a callback to save what it still holds first.
+
+**Restoring is an edit, not a replacement.** People may be editing right now, and their editors are synchronised with
+the *live* document; replacing it behind their backs would leave every open editor holding a document that no longer
+exists. So the old text is written into the live document inside one transaction, and the change reaches everybody
+through the normal update path:
+
+```text
+old version -> readable tree -> written into the LIVE document (one transaction)
+                                     |-> one update -> every open editor converges
+                                     |-> saved      -> MongoDB
+                                     +-> a new version, marked RESTORE
+```
+
+- It **compares and changes only what differs**, so cursors survive and restoring text that is already there sends
+  nothing at all.
+- **History is never rewritten.** The state before the restore is already in the history and the restore becomes the
+  newest version, pointing at the one it put back - so a restore can itself be undone.
+- Restoring needs `version:restore` (the right to edit), not just the right to read the history.
+- A server-made change is not relayed by any socket, so it is sent to the document's room explicitly
+  (`version:restored` on the event bus, then `doc:update` to the room).
+
+**In the browser.** A *History* button opens a dialog: the versions on the left, what the document looked like then on
+the right, and *Restore this version*. The preview is the same editor switched off (`editable: false`), so old text is
+drawn from its tree and never put on the page as HTML. A viewer can read the history and is told why there is no
+restore button.
+
+- Limitations: no diff between versions (you see each one whole); restoring brings back the text, not the title, because
+  the title is renamed separately and bringing it back would surprise people; a version is the whole document, so
+  history costs storage proportional to document size times 50; the timers live in one server process (Redis, Phase 11).
+
+### Workspace activity feed
+
+The workspace page shows what has been happening: `Amit created Graphs`, `Priya edited DP Notes`,
+`Rahul commented on Trees`, `Amit mentioned Priya`, `Aditya joined the workspace`.
+
+This is the event chain of `CLAUDE.md` section 18 doing real work. Controllers only say **what happened**;
+`events/activityListeners.js` decides what is worth a line:
+
+```text
+document:created                   -> Amit created "Graphs"
+version:created (AUTOSAVE)         -> Priya edited "DP Notes"       (one line per editing session)
+version:created (RESTORE)          -> Priya restored an older version of "DP Notes"
+comment:created (a new thread)     -> Rahul commented on "Trees"
+mention:created                    -> Amit mentioned Priya
+member:joined                      -> Aditya joined the workspace
+```
+
+**Typing is not an event.** A document counts as edited once its session produced a version, so an afternoon of writing
+is one line and not thousands, and replies do not repeat what the thread already said.
+
+Like a notification, a line **points at its source** and the names and titles are looked up when the feed is read, so a
+renamed document reads correctly in old lines. Deleting a document removes its lines, so the feed never points at
+something that is gone. The feed pages with a cursor like every other list here, and everybody in the workspace may
+read it.
+
+- Limitations: the feed is read when the page opens and with *Load more*, it is not pushed live (a feed is something you
+  look at, not a conversation); it is not filtered per person, and there is no "only documents" view yet.
 
 ### Authentication and security
 
