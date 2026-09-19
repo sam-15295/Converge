@@ -3,7 +3,7 @@
 A real-time collaborative workspace for teams: shared documents (Yjs), workspace chat,
 @mentions, notifications, comments and version history.
 
-> **Status:** Phase 4 - documents with a rich-text editor complete. Features are being built one phase at a time.
+> **Status:** Phase 5 - real-time collaborative editing complete. Features are being built one phase at a time.
 
 ## Tech stack
 
@@ -13,7 +13,8 @@ A real-time collaborative workspace for teams: shared documents (Yjs), workspace
 | Backend  | Node.js, Express 5, Mongoose, Zod, helmet         |
 | Auth     | JWT in HTTP-only cookies, bcrypt (bcryptjs)       |
 | Database | MongoDB                                           |
-| Later    | Socket.IO, Yjs + TipTap, Redis (added per phase)  |
+| Real time | Socket.IO (WebSockets), Yjs (CRDT)               |
+| Later    | Redis (added in its phase)                        |
 
 ## Project structure
 
@@ -22,6 +23,9 @@ server/
 ├── index.js          entry point: connects the database, starts the server
 ├── app.js            builds the Express app (middlewares + routes)
 ├── config/           settings and external connections (env, database, auth cookie, roles and permissions)
+├── service/          logic that does not belong to one route (Yjs helpers, the live document rooms)
+├── socket/           the real-time side: socket login check and the document protocol
+├── events/           a small in-process event bus
 ├── model/            Mongoose models
 ├── validators/       Zod schemas that check what the client sends
 ├── controllers/      the logic of every route
@@ -31,7 +35,7 @@ server/
 client/src/
 ├── pages/            one component per screen
 ├── components/       small reusable UI pieces
-├── features/         feature logic (auth, health, workspace, documents)
+├── features/         feature logic (auth, health, workspace, documents, and the Yjs socket provider)
 ├── hooks/            reusable React hooks
 ├── services/         the API client
 └── utils/            helper functions
@@ -112,9 +116,8 @@ All endpoints live under `/api`. Every response is JSON with a `message`, plus e
 | `POST /api/invite/:id/accept`, `/decline`  | yes          | Answer an invitation addressed to you                |
 | `POST /api/workspace/:id/documents`        | OWNER, ADMIN, MEMBER | Create a document                            |
 | `GET /api/workspace/:id/documents`         | member       | The workspace's documents (without their content)    |
-| `GET /api/workspace/:id/documents/:docId`  | member       | One document with its content and version           |
+| `GET /api/workspace/:id/documents/:docId`  | member       | One document's details and what you may do (its content travels over the socket) |
 | `PATCH /api/workspace/:id/documents/:docId`| OWNER, ADMIN, MEMBER | Rename                                       |
-| `PUT /api/workspace/:id/documents/:docId/content` | OWNER, ADMIN, MEMBER | Save the content (`{content, version}`; 409 if the version is stale) |
 | `DELETE /api/workspace/:id/documents/:docId` | see below  | Delete a document                                    |
 
 ### Roles and permissions
@@ -138,6 +141,46 @@ One more rule sits on top: **you can only manage people who rank below you**, an
 So an ADMIN cannot change or remove another ADMIN or the OWNER, and nobody can make someone OWNER.
 The matrix lives in one file, `server/config/permissions.js`.
 
+### Real-time editing (WebSocket and Yjs architecture)
+
+Documents are edited live by several people at once. Two technologies do the work:
+
+- **Yjs** is a CRDT (conflict-free replicated data type). Every edit is a small binary *update* that can be applied in any order on any copy and always gives the same result, so concurrent edits merge instead of conflicting.
+- **Socket.IO** (WebSockets) is the transport. It gives a permanent two-way connection, one *room* per open document, automatic reconnection and binary messages.
+
+```text
+Browser A: TipTap <-> Yjs doc                 Browser B: TipTap <-> Yjs doc
+              \                                        /
+               \----- Socket.IO (same port as the API) -/
+                                  |
+                Server: one live Yjs doc per open document  (service/docRoomService.js)
+                                  |
+                MongoDB: Yjs state (source of truth) + a readable JSON snapshot
+```
+
+**Protocol** (`socket/documentSocketHandlers.js`):
+
+| Message | Direction | Meaning |
+| --- | --- | --- |
+| `doc:join {workspaceId, documentId, stateVector}` | browser to server | "I want this document; here is a summary of what I already have" |
+| `doc:sync {update, stateVector}` | server to browser | what the browser is missing, and the server's summary. The browser then sends back what the server is missing (edits made offline) |
+| `doc:update {update}` | both ways | a live edit |
+| `doc:awareness {update}` | both ways | presence: who is here and where their cursor is (temporary, never saved) |
+| `doc:error {code, message}` | server to browser | `ACCESS_REVOKED`, `DOCUMENT_DELETED`, `READ_ONLY`, `INVALID_UPDATE`, ... |
+
+**Going offline:** the browser keeps its Yjs document, so typing continues. When the connection returns the join handshake exchanges exactly what each side is missing, and both merge.
+
+**Saving:** the server keeps the live document in memory while people are in it and writes it to MongoDB at most every 2 seconds and when the last person leaves.
+
+**Security of the real-time layer:**
+- The socket handshake uses the same HTTP-only login cookie as the REST API, and is refused for any `Origin` other than `CLIENT_URL` (cross-site WebSocket hijacking).
+- Joining needs workspace membership and `document:view`; sending edits needs `document:edit`. Outsiders get the same "not found" as for a document that does not exist.
+- Removing a member, changing a role, or deleting a document or workspace sends the affected people out of the room immediately.
+- Every incoming Yjs update is decoded and checked against the same whitelist as saved documents (allowed node types, marks and attributes; links only `http`, `https` or `mailto`) before it is applied or forwarded, and the whole document is checked again before it is saved.
+- Presence is controlled by the server: names and colours come from the logged in user, a Yjs client id belongs to the first connection that uses it, and cursors are cleaned.
+- Limits: 1 MB per message, a message rate per connection, and a size limit per document.
+- Limitation: the rooms live in one server process. Running several instances needs Redis Pub/Sub (planned).
+
 ### Authentication and security
 
 - Passwords are hashed with bcrypt (max 72 bytes, the bcrypt limit); hashes never leave the server.
@@ -148,7 +191,6 @@ The matrix lives in one file, `server/config/permissions.js`.
 - Requests that change data and come from an `Origin` other than `CLIENT_URL` are rejected (CSRF protection).
 - Every request body is validated with Zod; unknown fields are dropped.
 - Rich text is checked on the server against a whitelist of the editor's node types, marks and attributes; links may only be `http`, `https` or `mailto`, so a modified client cannot store scripts or `javascript:` links.
-- Saving a document needs the version it was based on; a stale save gets `409` instead of silently overwriting someone else's edit.
 
 ## Scripts
 
