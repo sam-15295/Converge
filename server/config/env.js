@@ -17,7 +17,10 @@ const envSchema = z.object({
     BCRYPT_ROUNDS : z.coerce.number().int().min(4).max(15).default(12),
 
     // failed login/signup attempts allowed per IP in 15 minutes
-    AUTH_RATE_LIMIT_MAX : z.coerce.number().int().positive().default(10)
+    AUTH_RATE_LIMIT_MAX : z.coerce.number().int().positive().default(10),
+
+    // chat messages one person may send in 10 seconds
+    CHAT_RATE_LIMIT_MAX : z.coerce.number().int().positive().default(30)
 });
 
 const parsed = envSchema.safeParse(process.env);

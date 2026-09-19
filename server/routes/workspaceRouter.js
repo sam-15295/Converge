@@ -3,6 +3,7 @@ import {createWorkspace, getMyWorkspaces, getWorkspace, updateWorkspace, deleteW
 import {listMembers, changeMemberRole, removeMember, leaveWorkspace} from "../controllers/workspaceMemberController.js";
 import {createInvite, listWorkspaceInvites, revokeInvite} from "../controllers/workspaceInviteController.js";
 import documentRouter from "./documentRouter.js";
+import messageRouter from "./messageRouter.js";
 import authUserMiddleware from "../middlewares/authUserMiddleware.js";
 import workspaceMemberMiddleware from "../middlewares/workspaceMemberMiddleware.js";
 import requirePermissionMiddleware from "../middlewares/requirePermissionMiddleware.js";
@@ -33,6 +34,9 @@ workspaceRouter.delete("/:workspaceId/invites/:inviteId", requirePermissionMiddl
 
 // documents of the workspace (they inherit the login and membership checks above)
 workspaceRouter.use("/:workspaceId/documents", documentRouter);
+
+// the chat of the workspace (also inherits the login and membership checks)
+workspaceRouter.use("/:workspaceId/messages", messageRouter);
 
 // leaving needs no special permission : every member may leave (except the owner, see the controller)
 workspaceRouter.post("/:workspaceId/leave", leaveWorkspace);

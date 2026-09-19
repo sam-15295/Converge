@@ -38,7 +38,12 @@ export const permissions = {
     //   document:delete    --> may delete any document
     //   document:deleteOwn --> may delete only the documents they created themselves
     "document:delete" : ["OWNER", "ADMIN"],
-    "document:deleteOwn" : ["OWNER", "ADMIN", "MEMBER"]
+    "document:deleteOwn" : ["OWNER", "ADMIN", "MEMBER"],
+
+    // the workspace chat : everybody may read it, VIEWERs cannot write
+    "chat:view" : ["OWNER", "ADMIN", "MEMBER", "VIEWER"],
+    "chat:send" : ["OWNER", "ADMIN", "MEMBER"],
+    "chat:react" : ["OWNER", "ADMIN", "MEMBER"]
 };
 
 export const can = (role, permission)=>{
