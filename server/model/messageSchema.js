@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import mentionsField from "./mentionsField.js";
 
 // One chat message of a workspace. A reply (a message in a thread) is also a Message : it just points at its parent.
 const messageSchema = new mongoose.Schema({
@@ -29,24 +30,8 @@ const messageSchema = new mongoose.Schema({
         default : null
     },
 
-    // The people this message mentions, chosen from the workspace's members : [{userId, displayName}].
-    // The displayName is a copy of the person's name AT THAT TIME (it is what the text says: "@Rahul"), so an old message keeps
-    // reading correctly even if the person renames themselves. Checked by services/mentionService.js before saving.
-    mentions : {
-        type : [{
-            _id : false,
-            userId : {
-                type : mongoose.Schema.Types.ObjectId,
-                ref : "User",
-                required : true
-            },
-            displayName : {
-                type : String,
-                required : true
-            }
-        }],
-        default : []
-    },
+    // who this message mentions (see model/mentionsField.js)
+    mentions : mentionsField,
 
     // kept on the PARENT so the chat list can show "3 replies" without counting on every read
     replyCount : {

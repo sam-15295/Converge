@@ -43,7 +43,18 @@ export const permissions = {
     // the workspace chat : everybody may read it, VIEWERs cannot write
     "chat:view" : ["OWNER", "ADMIN", "MEMBER", "VIEWER"],
     "chat:send" : ["OWNER", "ADMIN", "MEMBER"],
-    "chat:react" : ["OWNER", "ADMIN", "MEMBER"]
+    "chat:react" : ["OWNER", "ADMIN", "MEMBER"],
+
+    // comments on a document : everybody who can read the document reads them, VIEWERs cannot write
+    "comment:view" : ["OWNER", "ADMIN", "MEMBER", "VIEWER"],
+    "comment:create" : ["OWNER", "ADMIN", "MEMBER"],
+    "comment:resolve" : ["OWNER", "ADMIN", "MEMBER"],
+
+    // deleting depends on WHO WROTE the comment as well (like documents)
+    //   comment:delete    --> may delete any comment
+    //   comment:deleteOwn --> may delete only the comments they wrote themselves
+    "comment:delete" : ["OWNER", "ADMIN"],
+    "comment:deleteOwn" : ["OWNER", "ADMIN", "MEMBER"]
 };
 
 export const can = (role, permission)=>{
