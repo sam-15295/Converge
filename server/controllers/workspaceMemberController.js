@@ -3,6 +3,7 @@ import WorkspaceMember from "../model/workspaceMemberSchema.js";
 import {roles, outranks, can} from "../config/permissions.js";
 import {changeRoleSchema} from "../validators/workspaceValidator.js";
 import formatZodErrors from "../validators/formatZodErrors.js";
+import appEvents from "../events/appEvents.js";
 
 // only these fields are ever sent to the client.
 // canChangeRole / canRemove tell the screen whether to show the buttons for this person (for the user who asks).
@@ -111,6 +112,8 @@ export const changeMemberRole = async (req, res)=>{
         target.role = newRole;
         await target.save();
 
+        appEvents.emit("membership:changed", {workspaceId : target.workspaceId, userId : target.userId});
+
         res.status(200).json({
             message : "Member role updated Successfully",
             member : {userId : target.userId, role : target.role}
@@ -148,6 +151,8 @@ export const removeMember = async (req, res)=>{
 
         await target.deleteOne();
 
+        appEvents.emit("membership:changed", {workspaceId : target.workspaceId, userId : target.userId});
+
         res.status(200).json({
             message : "Member removed Successfully"
         });
@@ -170,6 +175,8 @@ export const leaveWorkspace = async (req, res)=>{
         }
 
         await req.membership.deleteOne();
+
+        appEvents.emit("membership:changed", {workspaceId : req.membership.workspaceId, userId : req.membership.userId});
 
         res.status(200).json({
             message : "You left the workspace"

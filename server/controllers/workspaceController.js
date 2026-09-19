@@ -2,6 +2,7 @@ import Workspace from "../model/workspaceSchema.js";
 import WorkspaceMember from "../model/workspaceMemberSchema.js";
 import WorkspaceInvite from "../model/workspaceInviteSchema.js";
 import Document from "../model/documentSchema.js";
+import appEvents from "../events/appEvents.js";
 import {permissionsOf, rolesBelow} from "../config/permissions.js";
 import {createWorkspaceSchema, updateWorkspaceSchema} from "../validators/workspaceValidator.js";
 import formatZodErrors from "../validators/formatZodErrors.js";
@@ -172,6 +173,9 @@ export const deleteWorkspace = async (req, res)=>{
         await WorkspaceInvite.deleteMany({workspaceId});
         await Document.deleteMany({workspaceId});
         await Workspace.deleteOne({_id : workspaceId});
+
+        // people who have one of its documents open are sent away (the socket layer listens)
+        appEvents.emit("workspace:deleted", {workspaceId});
 
         res.status(200).json({
             message : "Workspace deleted Successfully"

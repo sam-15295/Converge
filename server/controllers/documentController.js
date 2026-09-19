@@ -1,8 +1,9 @@
 import mongoose from "mongoose";
 import Document from "../model/documentSchema.js";
 import {can, permissionsOf} from "../config/permissions.js";
-import {createDocumentSchema, renameDocumentSchema, saveContentSchema} from "../validators/documentValidator.js";
+import {createDocumentSchema, renameDocumentSchema} from "../validators/documentValidator.js";
 import formatZodErrors from "../validators/formatZodErrors.js";
+import appEvents from "../events/appEvents.js";
 
 // what the document list shows (never the content, it can be large)
 const formatDocumentSummary = (document, membership, user)=>{
@@ -25,15 +26,14 @@ const canDeleteDocument = (membership, document, user)=>{
 
 // The document of the URL, always looked up INSIDE the workspace of the URL.
 // A document id of another workspace is simply "not found".
-const findDocument = (req, {withContent = false} = {})=>{
+const findDocument = (req)=>{
     const {documentId} = req.params;
 
     if(!mongoose.isValidObjectId(documentId)){
         return null;
     }
 
-    const query = Document.findOne({_id : documentId, workspaceId : req.membership.workspaceId});
-    return withContent ? query.select("+content") : query;
+    return Document.findOne({_id : documentId, workspaceId : req.membership.workspaceId});
 }
 
 export const createDocument = async (req, res)=>{
@@ -55,7 +55,7 @@ export const createDocument = async (req, res)=>{
 
         res.status(201).json({
             message : "Document created Successfully",
-            document : {id : document._id, title : document.title, version : document.version}
+            document : {id : document._id, title : document.title}
         });
     }
     catch(err){
@@ -88,7 +88,7 @@ export const listDocuments = async (req, res)=>{
 
 export const getDocument = async (req, res)=>{
     try{
-        const document = await findDocument(req, {withContent : true});
+        const document = await findDocument(req);
 
         if(!document){
             return res.status(404).json({
@@ -101,8 +101,6 @@ export const getDocument = async (req, res)=>{
             document : {
                 id : document._id,
                 title : document.title,
-                content : document.content,
-                version : document.version,
                 updatedAt : document.updatedAt
             },
             permissions : permissionsOf(req.membership.role),
@@ -170,70 +168,11 @@ export const deleteDocument = async (req, res)=>{
 
         await document.deleteOne();
 
+        // people who have it open are sent away (the socket layer listens)
+        appEvents.emit("document:deleted", {workspaceId : document.workspaceId, documentId : document._id});
+
         res.status(200).json({
             message : "Document deleted Successfully"
-        });
-    }
-    catch(err){
-        console.log(err);
-        res.status(500).json({
-            message : "Internal Server Error"
-        });
-    }
-}
-
-// Saves the content of the editor.
-// Optimistic locking : the update only matches while the document is STILL at the version the editor
-// started from. So if somebody else saved in the meantime, this save matches nothing and gets a 409,
-// instead of silently overwriting their work. The check and the update are one atomic database
-// operation, so two saves at the same moment can never both win.
-export const saveContent = async (req, res)=>{
-    try{
-        const {documentId} = req.params;
-
-        if(!mongoose.isValidObjectId(documentId)){
-            return res.status(404).json({
-                message : "Document not found"
-            });
-        }
-
-        const result = saveContentSchema.safeParse(req.body);
-
-        if(!result.success){
-            return res.status(400).json({
-                message : result.error.issues[0].message,
-                errors : formatZodErrors(result.error)
-            });
-        }
-
-        const {content, version} = result.data;
-        const workspaceId = req.membership.workspaceId;
-
-        const saved = await Document.findOneAndUpdate(
-            {_id : documentId, workspaceId, version},
-            {$set : {content, lastEditedBy : req.user._id}, $inc : {version : 1}},
-            {new : true, projection : {version : 1, updatedAt : 1}}
-        );
-
-        if(!saved){
-            // no match : the document does not exist in this workspace, or it moved on to a newer version
-            const exists = await Document.exists({_id : documentId, workspaceId});
-
-            if(!exists){
-                return res.status(404).json({
-                    message : "Document not found"
-                });
-            }
-
-            return res.status(409).json({
-                message : "This document was changed by someone else. Reload to see the latest version."
-            });
-        }
-
-        res.status(200).json({
-            message : "Document saved Successfully",
-            version : saved.version,
-            updatedAt : saved.updatedAt
         });
     }
     catch(err){

@@ -1,7 +1,6 @@
 import mongoose from "mongoose";
 
-// A document of a workspace. Only the current state is stored here.
-// (Snapshots and version history come in a later phase, and real-time editing with Yjs in Phase 5.)
+// A document of a workspace. Only the current state is stored here (version history comes in a later phase).
 const documentSchema = new mongoose.Schema({
     workspaceId : {
         type : mongoose.Schema.Types.ObjectId,
@@ -16,21 +15,22 @@ const documentSchema = new mongoose.Schema({
         maxlength : 100
     },
 
-    // The editor's document as a JSON tree (TipTap / ProseMirror), for example
+    // The shared document as a Yjs state (binary). This is the SOURCE OF TRUTH : the editor edits a Yjs
+    // document live, and the server saves its whole state here (see service/docRoomService.js).
+    // Hidden from normal queries, because it is large : ask for it with .select("+yjsState").
+    yjsState : {
+        type : Buffer,
+        select : false
+    },
+
+    // A readable snapshot of the same document as a JSON tree (TipTap / ProseMirror), for example
     //   { type : "doc", content : [ { type : "paragraph", content : [ { type : "text", text : "Hello" } ] } ] }
-    // It can be large, so it is left out of normal queries : ask for it with .select("+content").
-    // The server checks the tree against a whitelist before saving (validators/documentContentValidator.js).
+    // Written together with yjsState. Later phases use it for version history and search.
+    // Documents written before Phase 5 only have this field, and get their Yjs state the first time they are opened.
     content : {
         type : mongoose.Schema.Types.Mixed,
         select : false,
         default : ()=> ({type : "doc", content : [{type : "paragraph"}]})
-    },
-
-    // Goes up by one on every content save. A save must say which version it is based on,
-    // and only succeeds if that is still the current one (optimistic locking).
-    version : {
-        type : Number,
-        default : 0
     },
 
     createdBy : {

@@ -1,0 +1,218 @@
+import * as Y from "yjs";
+import {Awareness} from "y-protocols/awareness";
+import Document from "../model/documentSchema.js";
+import {jsonToYDoc, yDocToJSON, encodeState} from "./yjsService.js";
+import {findContentProblem} from "../validators/documentContentValidator.js";
+
+// One "room" = one document that people have open right now.
+// The room holds the live Yjs document in memory (the server's copy, which every editor syncs with)
+// and the awareness (who is here, where their cursor is: temporary, never saved).
+//
+// Life of a room :  first person opens the document  -> loaded from MongoDB
+//                   people type                       -> updates are applied here and saved (at most every 2 seconds)
+//                   last person leaves                -> saved, then removed from memory after a short grace period
+//
+// The room lives in THIS process's memory. With several server instances two rooms of the same document would
+// diverge, which is what Redis Pub/Sub solves in Phase 11.
+
+const saveDelayMs = 2000;           // saves are throttled : at most one every 2 seconds while people type
+const closeDelayMs = 5000;          // a room stays in memory a moment after the last person leaves (page reloads)
+const maxDocumentBytes = 8 * 1024 * 1024;   // safety valve : a document may not grow beyond this
+
+const rooms = new Map();        // documentId -> room
+const loading = new Map();      // documentId -> Promise of a room that is being loaded
+
+export const roomName = (documentId)=> `doc:${documentId}`;
+
+// Loads the document from MongoDB into a new room
+const loadRoom = async (documentId)=>{
+    const stored = await Document.findById(documentId).select("+yjsState +content");
+
+    if(!stored){
+        return null;
+    }
+
+    const doc = new Y.Doc();
+    let needsFirstSave = false;
+
+    if(stored.yjsState && stored.yjsState.length > 0){
+        Y.applyUpdate(doc, new Uint8Array(stored.yjsState));
+    }
+    else if(stored.content && findContentProblem(stored.content) === null){
+        // A document from before real-time editing : it only has the JSON snapshot. Turn it into a Yjs document ONCE, here,
+        // on the server, so two people opening it at the same moment do not both create their own copy of the text.
+        Y.applyUpdate(doc, encodeState(jsonToYDoc(stored.content)));
+        needsFirstSave = true;
+    }
+
+    const room = {
+        documentId : String(documentId),
+        doc,
+        awareness : new Awareness(doc),
+        sockets : new Map(),            // socketId -> {userId, workspaceId}
+        clientOwners : new Map(),       // awareness clientID -> socketId that owns it
+        dirty : false,
+        lastEditorId : null,
+        saveTimer : null,
+        saving : Promise.resolve(),
+        closeTimer : null,
+        closePromise : null,
+        discarded : false,
+        destroyed : false,
+        approxBytes : Y.encodeStateAsUpdate(doc).length
+    };
+
+    // The server's own awareness state is not a person. Remove it so it is never sent to anybody.
+    room.awareness.setLocalState(null);
+
+    rooms.set(room.documentId, room);
+
+    if(needsFirstSave){
+        room.dirty = true;
+        await persistRoom(room);
+    }
+
+    return room;
+}
+
+// Returns the room of a document, loading it on first use. null when the document does not exist.
+export const getRoom = async (documentId)=>{
+    const key = String(documentId);
+    const existing = rooms.get(key);
+
+    if(existing){
+        if(existing.closePromise){
+            // it is being saved and removed right now : wait, then load a fresh one from the saved state
+            await existing.closePromise;
+            return getRoom(key);
+        }
+        clearTimeout(existing.closeTimer);
+        existing.closeTimer = null;
+        return existing;
+    }
+
+    if(!loading.has(key)){
+        loading.set(key, loadRoom(key).finally(()=> loading.delete(key)));
+    }
+
+    return loading.get(key);
+}
+
+export const getOpenRoom = (documentId)=> rooms.get(String(documentId));
+
+export const listRooms = ()=> [...rooms.values()];
+
+// Saves the room to MongoDB. Saves of one room never overlap (each waits for the previous one).
+export const persistRoom = (room)=>{
+    room.saving = room.saving.then(async ()=>{
+        if(!room.dirty || room.discarded){
+            return;
+        }
+
+        room.dirty = false;     // changes that arrive WHILE saving set it again and cause another save
+
+        try{
+            const json = yDocToJSON(room.doc);
+            const problem = findContentProblem(json);
+
+            // Second layer of the rich-text whitelist : incoming updates were already checked one by one,
+            // this checks the WHOLE document before it is stored. It should never fail. If it does, nothing is written,
+            // so the last good state stays in the database.
+            if(problem){
+                console.log(`Document ${room.documentId} was NOT saved, its content is not valid : ${problem}`);
+                return;
+            }
+
+            await Document.updateOne({_id : room.documentId}, {$set : {
+                yjsState : Buffer.from(encodeState(room.doc)),
+                content : json,
+                ...(room.lastEditorId ? {lastEditedBy : room.lastEditorId} : {})
+            }});
+        }
+        catch(err){
+            room.dirty = true;      // try again with the next save
+            console.log(`Saving document ${room.documentId} failed`, err);
+        }
+    });
+
+    return room.saving;
+}
+
+// Called after every change : make sure a save happens soon, but not on every keystroke
+export const scheduleSave = (room)=>{
+    room.dirty = true;
+
+    if(!room.saveTimer){
+        room.saveTimer = setTimeout(()=>{
+            room.saveTimer = null;
+            persistRoom(room);
+        }, saveDelayMs);
+        room.saveTimer.unref();
+    }
+}
+
+// How much a room may still grow (a rough estimate that only goes up until the room is reloaded)
+export const canGrow = (room, extraBytes)=>{
+    room.approxBytes += extraBytes;
+    return room.approxBytes <= maxDocumentBytes;
+}
+
+const destroyRoom = (room)=>{
+    if(room.destroyed){
+        return;
+    }
+    room.destroyed = true;
+    clearTimeout(room.saveTimer);
+    clearTimeout(room.closeTimer);
+    room.awareness.destroy();
+    room.doc.destroy();
+    rooms.delete(room.documentId);
+}
+
+// Called when the last person left : after a short wait, save and free the memory
+export const closeRoomLater = (room)=>{
+    if(room.destroyed || room.sockets.size > 0 || room.closeTimer){
+        return;
+    }
+
+    room.closeTimer = setTimeout(()=>{
+        room.closeTimer = null;
+        if(room.sockets.size > 0){
+            return;
+        }
+
+        room.closePromise = persistRoom(room).then(()=> destroyRoom(room));
+    }, closeDelayMs);
+    room.closeTimer.unref();
+}
+
+// The document was deleted : forget the room WITHOUT saving (it must not come back to life)
+export const discardRoom = (documentId)=>{
+    const room = rooms.get(String(documentId));
+
+    if(room){
+        room.discarded = true;
+        destroyRoom(room);
+    }
+    return room;
+}
+
+// Server shutdown (or the end of a test) : save everything that is not saved yet
+export const flushAllRooms = async ()=>{
+    for(const room of [...rooms.values()]){
+        clearTimeout(room.saveTimer);
+        room.saveTimer = null;
+        await persistRoom(room);
+    }
+}
+
+// Frees everything (tests use this between runs)
+export const resetRooms = async ()=>{
+    await flushAllRooms();
+
+    for(const room of [...rooms.values()]){
+        destroyRoom(room);
+    }
+    loading.clear();
+}
+
