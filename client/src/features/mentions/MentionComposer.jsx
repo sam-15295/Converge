@@ -1,4 +1,4 @@
-import { useId, useRef, useState } from "react";
+import { useId, useLayoutEffect, useRef, useState } from "react";
 import { findMentionQuery, insertMention, mentionsInText, suggestMembers } from "./mentions";
 
 const messageMaxLength = 4000; // the limit of a chat message on the server
@@ -21,6 +21,17 @@ const MentionComposer = ({ onSend, label, placeholder, disabledReason, members =
     const [error, setError] = useState(null);
     const boxRef = useRef(null);
     const listId = useId();
+
+    // Where the caret must go once the text with the chosen name is on the screen. React puts the caret at the END when it
+    // sets a new value, so it is moved right behind the inserted name in a layout effect : that runs in the same commit as the
+    // new text, before the browser handles the next key. (A later frame, like requestAnimationFrame, could run between two
+    // keys of somebody who types straight on, and would jump the caret back before the letters already typed.)
+    const caretAfterRender = useRef(null);
+    useLayoutEffect(()=>{
+        if(caretAfterRender.current === null) return;
+        boxRef.current?.setSelectionRange(caretAfterRender.current, caretAfterRender.current);
+        caretAfterRender.current = null;
+    });
 
     // The list is worked out from the text and the caret, it is not state of its own, so it can never be out of date
     const typing = findMentionQuery(text, caret);
@@ -59,8 +70,7 @@ const MentionComposer = ({ onSend, label, placeholder, disabledReason, members =
         setText(result.text);
         setCaret(result.caret);
         setPicked((list)=> (list.some((item)=> item.userId === member.userId) ? list : [...list, member]));
-        // React puts the caret at the end when it sets the new text, so it is moved right behind the inserted name afterwards
-        requestAnimationFrame(()=> boxRef.current?.setSelectionRange(result.caret, result.caret));
+        caretAfterRender.current = result.caret;
     }
 
     const keyPressed = (event)=>{
