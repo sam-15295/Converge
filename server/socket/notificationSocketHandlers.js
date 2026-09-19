@@ -69,9 +69,10 @@ const attachNotificationHandlers = (io)=>{
         io.to(userRoom(recipientId)).emit("notification:all-read", {unreadCount});
     }
 
-    // Leaving (or being removed from) a workspace hides its notifications, so the number on the bell changes.
+    // The number on somebody's bell changed for a reason that is not a new or a read notification : they left a workspace
+    // (its notifications are hidden), or a comment they were notified about was deleted.
     // Nothing is asked from the database when the person has no tab listening.
-    const onMembershipChanged = async ({userId})=>{
+    const pushCount = async (userId)=>{
         try{
             if(!io.sockets.adapter.rooms.has(userRoom(userId))){
                 return;
@@ -83,10 +84,14 @@ const attachNotificationHandlers = (io)=>{
         }
     }
 
+    const onMembershipChanged = ({userId})=> pushCount(userId);
+    const onRecount = ({recipientId})=> pushCount(recipientId);
+
     appEvents.on("notification:created", onCreated);
     appEvents.on("notification:read", onRead);
     appEvents.on("notification:read-all", onReadAll);
     appEvents.on("membership:changed", onMembershipChanged);
+    appEvents.on("notification:recount", onRecount);
 
     // used when the server stops (and by tests) so listeners are not added twice
     return ()=>{
@@ -94,6 +99,7 @@ const attachNotificationHandlers = (io)=>{
         appEvents.off("notification:read", onRead);
         appEvents.off("notification:read-all", onReadAll);
         appEvents.off("membership:changed", onMembershipChanged);
+        appEvents.off("notification:recount", onRecount);
     };
 }
 

@@ -65,6 +65,19 @@ export const createNotification = async ({type, recipientId, senderId, workspace
     }
 }
 
+// Deletes the notifications that point at things which no longer exist (deleted comments). Returns the people whose
+// unread count changed, once each, so their bell can be told.
+export const deleteNotificationsOf = async (sourceType, sourceIds)=>{
+    const found = await Notification.find({sourceType, sourceId : {$in : sourceIds}}).select("recipientId");
+
+    if(found.length === 0){
+        return [];
+    }
+
+    await Notification.deleteMany({_id : {$in : found.map((notification)=> notification._id)}});
+    return [...new Set(found.map((notification)=> String(notification.recipientId)))];
+}
+
 // What is sent to clients (REST and sockets). The notification only holds ids, so the names, the workspace and a preview
 // of the message are looked up here : three queries for the whole list, not three per notification.
 export const formatNotifications = async (notifications)=>{

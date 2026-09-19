@@ -1,4 +1,5 @@
 import Comment from "../model/commentSchema.js";
+import {deleteNotificationsOf} from "./notificationService.js";
 
 const asText = (value)=> value === null || value === undefined ? null : String(value);
 const asIsoDate = (value)=> value ? new Date(value).toISOString() : null;
@@ -104,6 +105,19 @@ export const findThread = async (documentId, commentId)=>{
     .sort({createdAt : 1, _id : 1});
 
     return withReplies([topLevel], replies)[0];
+}
+
+// Deletes comments, and the notifications about them (a notification about a comment that is gone would lead nowhere).
+// Returns the people whose unread count changed.
+export const removeComments = async (commentIds)=>{
+    await Comment.deleteMany({_id : {$in : commentIds}});
+    return deleteNotificationsOf("COMMENT", commentIds);
+}
+
+// All the comments of a document (when the document is deleted)
+export const removeCommentsOfDocument = async (documentId)=>{
+    const ids = await Comment.find({documentId}).distinct("_id");
+    return ids.length > 0 ? removeComments(ids) : [];
 }
 
 // how many threads of the document are still open (the number on the comments button)

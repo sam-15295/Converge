@@ -4,6 +4,7 @@ import {can, permissionsOf} from "../config/permissions.js";
 import {createDocumentSchema, renameDocumentSchema} from "../validators/documentValidator.js";
 import formatZodErrors from "../validators/formatZodErrors.js";
 import appEvents from "../events/appEvents.js";
+import {removeCommentsOfDocument} from "../service/commentService.js";
 
 // what the document list shows (never the content, it can be large)
 const formatDocumentSummary = (document, membership, user)=>{
@@ -167,6 +168,11 @@ export const deleteDocument = async (req, res)=>{
         }
 
         await document.deleteOne();
+
+        // its comments go with it, and so do the notifications about them (those people have fewer unread ones now)
+        for(const recipientId of await removeCommentsOfDocument(document._id)){
+            appEvents.emit("notification:recount", {recipientId});
+        }
 
         // people who have it open are sent away (the socket layer listens)
         appEvents.emit("document:deleted", {workspaceId : document.workspaceId, documentId : document._id});

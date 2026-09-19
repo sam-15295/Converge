@@ -2,8 +2,8 @@ import mongoose from "mongoose";
 
 // "Something happened that you should know about". It POINTS at what happened (sourceType + sourceId) instead of
 // storing display text, so the inbox always shows the current message and can link to it.
-// Today the only kind is MENTION (somebody mentioned you in a chat message). Comments, replies and invitations add
-// their own types and source types in later phases.
+// Today the only kind is MENTION (somebody mentioned you in a chat message or in a comment on a document). Replies and
+// invitations would add their own types.
 const notificationSchema = new mongoose.Schema({
     // who is notified
     recipientId : {
@@ -21,7 +21,7 @@ const notificationSchema = new mongoose.Schema({
     // what the notification points at, and its id
     sourceType : {
         type : String,
-        enum : ["MESSAGE"],
+        enum : ["MESSAGE", "COMMENT"],
         required : true
     },
 

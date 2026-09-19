@@ -1,10 +1,11 @@
 import mongoose from "mongoose";
 import Comment from "../model/commentSchema.js";
 import appEvents from "../events/appEvents.js";
+import {can} from "../config/permissions.js";
 import {createCommentSchema, listCommentsQuerySchema} from "../validators/commentValidator.js";
 import formatZodErrors from "../validators/formatZodErrors.js";
 import {resolveMentions} from "../service/mentionService.js";
-import {countOpenThreads, findThread, findThreads, loadAndFormat} from "../service/commentService.js";
+import {countOpenThreads, findThread, findThreads, loadAndFormat, removeComments} from "../service/commentService.js";
 
 // Everything about a comment is looked up INSIDE the document of the URL (which commentDocumentMiddleware already checked
 // to be a document of this workspace), so a comment id of another document is "not found".
@@ -151,6 +152,101 @@ export const createComment = async (req, res)=>{
         res.status(201).json({
             message : "Comment added Successfully",
             comment
+        });
+    }
+    catch(err){
+        console.log(err);
+        res.status(500).json({
+            message : "Internal Server Error"
+        });
+    }
+}
+
+// Resolving and reopening are the same change in two directions : only the FIRST comment of a thread names a thread.
+const setResolved = async (req, res, resolved)=>{
+    try{
+        const {commentId} = req.params;
+
+        if(!mongoose.isValidObjectId(commentId)){
+            return res.status(404).json({
+                message : "Comment not found"
+            });
+        }
+
+        const change = resolved
+            ? {resolved : true, resolvedBy : req.user._id, resolvedAt : new Date()}
+            : {resolved : false, resolvedBy : null, resolvedAt : null};
+
+        // Only the first time changes anything : repeating it (or two people at once) keeps who did it and when.
+        // The database decides, because the filter and the change are ONE operation.
+        await Comment.updateOne({_id : commentId, documentId : req.document._id, parentCommentId : null, resolved : !resolved}, {$set : change});
+
+        const thread = await findThread(req.document._id, commentId);
+
+        if(!thread){
+            return res.status(404).json({
+                message : "Comment not found"
+            });
+        }
+
+        appEvents.emit("comment:updated", {workspaceId : req.document.workspaceId, documentId : req.document._id, thread});
+
+        res.status(200).json({
+            message : resolved ? "Thread resolved" : "Thread reopened",
+            thread
+        });
+    }
+    catch(err){
+        console.log(err);
+        res.status(500).json({
+            message : "Internal Server Error"
+        });
+    }
+}
+
+export const resolveThread = (req, res)=> setResolved(req, res, true);
+
+export const reopenThread = (req, res)=> setResolved(req, res, false);
+
+// Who may delete depends on the role AND on who wrote the comment (like documents) :
+// OWNER and ADMIN may delete any comment, a MEMBER only their own. Deleting the first comment of a thread deletes the thread.
+export const deleteComment = async (req, res)=>{
+    try{
+        const {commentId} = req.params;
+        const comment = mongoose.isValidObjectId(commentId) ? await Comment.findOne({_id : commentId, documentId : req.document._id}) : null;
+
+        if(!comment){
+            return res.status(404).json({
+                message : "Comment not found"
+            });
+        }
+
+        const wroteIt = String(comment.authorId) === String(req.user._id);
+
+        if(!can(req.membership.role, "comment:delete") && !(can(req.membership.role, "comment:deleteOwn") && wroteIt)){
+            return res.status(403).json({
+                message : "You can only delete comments you wrote yourself"
+            });
+        }
+
+        const replyIds = comment.parentCommentId ? [] : await Comment.find({parentCommentId : comment._id}).distinct("_id");
+        const recipients = await removeComments([comment._id, ...replyIds]);
+
+        // everybody who has the comments open sees it go (the socket layer listens)
+        appEvents.emit("comment:deleted", {
+            workspaceId : req.document.workspaceId,
+            documentId : req.document._id,
+            commentId : comment._id,
+            parentCommentId : comment.parentCommentId
+        });
+
+        // the people who were notified about it have one notification less
+        for(const recipientId of recipients){
+            appEvents.emit("notification:recount", {recipientId});
+        }
+
+        res.status(200).json({
+            message : "Comment deleted Successfully"
         });
     }
     catch(err){
