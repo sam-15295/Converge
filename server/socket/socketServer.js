@@ -1,5 +1,7 @@
 import {Server} from "socket.io";
+import {createAdapter} from "@socket.io/redis-adapter";
 import env from "../config/env.js";
+import {createSubscriber, getRedis} from "../config/redis.js";
 import socketAuthMiddleware from "./socketAuthMiddleware.js";
 import attachDocumentHandlers from "./documentSocketHandlers.js";
 import attachChatHandlers from "./chatSocketHandlers.js";
@@ -11,12 +13,38 @@ import {resetPresence} from "../service/presenceService.js";
 
 const allowedOrigin = new URL(env.CLIENT_URL).origin;
 
+// Makes this server's rooms reach the OTHER servers.
+//
+// `io.to(room).emit(...)` normally only reaches the browsers connected to THIS process. With several servers behind
+// one address, a chat message sent to server A would never reach somebody connected to server B. The Redis adapter
+// fixes that : every broadcast is also published to Redis, and each server delivers it to its own browsers.
+//
+//     server A : io.to("chat:42").emit(...)  ->  Redis  ->  server B : delivers to its browsers in chat:42
+//
+// Nothing else in the code changes : the handlers still say io.to(room).emit and do not know how far it travels.
+// Without Redis this does nothing and the server keeps working on its own.
+const attachRedisAdapter = async (io)=>{
+    const publisher = getRedis();
+
+    if(!publisher){
+        return;
+    }
+
+    // The adapter needs one connection to publish and one to listen : a connection that is subscribed cannot run
+    // ordinary commands (see config/redis.js).
+    const subscriber = await createSubscriber();
+
+    io.adapter(createAdapter(publisher, subscriber));
+    io.redisSubscriber = subscriber;    // kept so it can be closed with the server
+    console.log("Socket.IO is using the Redis adapter : broadcasts reach every server");
+}
+
 // Creates the Socket.IO server on top of the same HTTP server as the REST API (same port).
 //
 // Socket.IO is a library on top of WebSockets : a permanent two-way connection between browser and server, so the server
 // can PUSH changes to everybody who has a document open. On top of raw WebSockets it adds rooms (one per document),
 // automatic reconnection, and binary messages (Yjs updates are binary).
-const createSocketServer = (httpServer)=>{
+const createSocketServer = async (httpServer)=>{
     const io = new Server(httpServer, {
         serveClient : false,
         maxHttpBufferSize : 1e6,        // one message may be at most 1 MB
@@ -32,6 +60,9 @@ const createSocketServer = (httpServer)=>{
 
         cors : {origin : env.CLIENT_URL, credentials : true}
     });
+
+    // before the handlers, so no broadcast can happen while the adapter is still being set up
+    await attachRedisAdapter(io);
 
     io.use(socketAuthMiddleware);
     io.detachDocumentHandlers = attachDocumentHandlers(io);
@@ -52,6 +83,7 @@ export const closeSocketServer = async (io)=>{
     await flushAllVersions();   // a session that was waiting for its version still gets one
     io.disconnectSockets(true);     // do not wait for a client that is stuck
     await new Promise((resolve)=> io.close(resolve));
+    await io.redisSubscriber?.quit().catch(()=> {});
     await resetRooms();
     resetPresence();
 }

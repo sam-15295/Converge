@@ -3,6 +3,7 @@ import Document from "../model/documentSchema.js";
 import {can} from "../config/permissions.js";
 import appEvents from "../events/appEvents.js";
 import {countOpenThreads} from "../service/commentService.js";
+import {isRedisEnabled} from "../config/redis.js";
 
 // The real-time side of the comments of a document.
 //
@@ -125,10 +126,13 @@ const attachCommentHandlers = (io)=>{
     // ---------- delivering what happened elsewhere in the app ----------
 
     // Sends an event to everybody who has the comments of the document open, with the number of open threads.
-    // Nothing is asked from the database when nobody is listening.
+    //
+    // Nothing is asked from the database when nobody is listening. That shortcut may only be taken when THIS is the
+    // only server : the room list here holds the sockets of this process, so with several servers somebody listening
+    // on another one would be skipped.
     const pushToRoom = async (documentId, event, payload)=>{
         try{
-            if(!io.sockets.adapter.rooms.has(commentsRoom(documentId))){
+            if(!isRedisEnabled() && !io.sockets.adapter.rooms.has(commentsRoom(documentId))){
                 return;
             }
             io.to(commentsRoom(documentId)).emit(event, {...payload, openCount : await countOpenThreads(documentId)});

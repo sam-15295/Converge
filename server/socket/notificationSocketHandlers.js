@@ -1,5 +1,6 @@
 import appEvents from "../events/appEvents.js";
 import {countUnread} from "../service/notificationService.js";
+import {isRedisEnabled} from "../config/redis.js";
 
 // The real-time side of notifications : the server PUSHES a new notification (and every change of the unread count) to
 // the tabs of the person it belongs to, so the bell updates without asking.
@@ -71,10 +72,11 @@ const attachNotificationHandlers = (io)=>{
 
     // The number on somebody's bell changed for a reason that is not a new or a read notification : they left a workspace
     // (its notifications are hidden), or a comment they were notified about was deleted.
-    // Nothing is asked from the database when the person has no tab listening.
+    // Nothing is asked from the database when the person has no tab listening. Only valid while this is the only
+    // server : with several, their tab may be listening on another one (see commentSocketHandlers for the same rule).
     const pushCount = async (userId)=>{
         try{
-            if(!io.sockets.adapter.rooms.has(userRoom(userId))){
+            if(!isRedisEnabled() && !io.sockets.adapter.rooms.has(userRoom(userId))){
                 return;
             }
             io.to(userRoom(userId)).emit("notification:unread-count", {unreadCount : await countUnread(userId)});

@@ -18,7 +18,7 @@ const startServer = async ()=>{
 
         // one HTTP server for both the REST API (Express) and the real-time connections (Socket.IO), on the same port
         const server = http.createServer(app);
-        const io = createSocketServer(server);
+        const io = await createSocketServer(server);
 
         // mentions become notifications, and what happens becomes the activity feed
         // (the listeners live as long as the process, so nothing has to remove them)
