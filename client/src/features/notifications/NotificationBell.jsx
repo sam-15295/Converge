@@ -25,38 +25,38 @@ const NotificationPanel = ({ id, onClose })=>{
             id={id}
             role="region"
             aria-label="Notifications"
-            className="absolute right-0 z-40 mt-2 w-80 max-w-[calc(100vw-2rem)] rounded-lg border border-slate-200 bg-white shadow-lg"
+            className="absolute right-0 z-40 mt-2 w-80 max-w-[calc(100vw-2rem)] rounded-lg border border-line bg-surface shadow-lg"
         >
-            <div className="flex items-center justify-between border-b border-slate-100 px-3 py-2">
-                <h2 className="text-sm font-semibold text-slate-900">Notifications</h2>
+            <div className="flex items-center justify-between border-b border-line px-3 py-2">
+                <h2 className="text-sm font-semibold text-strong">Notifications</h2>
                 <button
                     type="button"
                     disabled={unreadCount === 0}
                     onClick={()=> markAllRead().catch(()=>{})}
-                    className="text-xs font-medium text-blue-700 hover:underline disabled:cursor-default disabled:text-slate-400 disabled:no-underline"
+                    className="text-xs font-medium text-info hover:underline disabled:cursor-default disabled:text-faint disabled:no-underline"
                 >
                     Mark all as read
                 </button>
             </div>
 
             {list.problem && (
-                <p role="alert" className="px-3 py-3 text-sm text-red-600">
+                <p role="alert" className="px-3 py-3 text-sm text-danger">
                     {list.problem}
                 </p>
             )}
-            {!list.problem && !list.loaded && <p className="px-3 py-4 text-center text-sm text-slate-500">Loading…</p>}
+            {!list.problem && !list.loaded && <p className="px-3 py-4 text-center text-sm text-muted">Loading…</p>}
             {list.loaded && list.items.length === 0 && (
-                <p className="px-3 py-6 text-center text-sm text-slate-500">Nothing yet. Mentions of you show up here.</p>
+                <p className="px-3 py-6 text-center text-sm text-muted">Nothing yet. Mentions of you show up here.</p>
             )}
 
-            <ul className="max-h-96 divide-y divide-slate-100 overflow-y-auto">
+            <ul className="max-h-96 divide-y divide-line overflow-y-auto">
                 {list.items.map((notification)=> (
                     <NotificationItem key={notification.id} notification={notification} onOpen={open} compact />
                 ))}
             </ul>
 
-            <div className="border-t border-slate-100 px-3 py-2 text-center">
-                <Link to="/notifications" onClick={onClose} className="text-sm font-medium text-blue-700 hover:underline">
+            <div className="border-t border-line px-3 py-2 text-center">
+                <Link to="/notifications" onClick={onClose} className="text-sm font-medium text-info hover:underline">
                     See all mentions
                 </Link>
             </div>
@@ -98,13 +98,13 @@ const NotificationBell = ()=>{
                 aria-expanded={open}
                 aria-controls={open ? panelId : undefined}
                 onClick={()=> setOpen((isOpen)=> !isOpen)}
-                className="relative rounded-md p-2 text-slate-600 hover:bg-slate-100"
+                className="relative rounded-md p-2 text-body hover:bg-raised"
             >
                 <BellIcon />
                 {unreadCount > 0 && (
                     <span
                         aria-hidden="true"
-                        className="absolute -top-0.5 -right-0.5 min-w-4 rounded-full bg-red-600 px-1 text-center text-[10px] leading-4 font-semibold text-white"
+                        className="absolute -top-0.5 -right-0.5 min-w-4 rounded-full bg-danger-solid px-1 text-center text-[10px] leading-4 font-semibold text-white"
                     >
                         {unreadCount > 99 ? "99+" : unreadCount}
                     </span>

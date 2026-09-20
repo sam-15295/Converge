@@ -1,8 +1,8 @@
 const STYLES = {
-    OWNER: "bg-purple-100 text-purple-800",
-    ADMIN: "bg-blue-100 text-blue-800",
-    MEMBER: "bg-emerald-100 text-emerald-800",
-    VIEWER: "bg-slate-100 text-slate-600"
+    OWNER: "bg-accent-chip text-accent",
+    ADMIN: "bg-info-chip text-info",
+    MEMBER: "bg-success-bg text-success",
+    VIEWER: "bg-raised text-body"
 };
 
 const RoleBadge = ({ role })=>{

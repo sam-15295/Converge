@@ -8,12 +8,12 @@ import NotificationsProvider from "../features/notifications/NotificationsProvid
 const AppLayout = ()=>{
     return (
         <NotificationsProvider>
-            <header className="sticky top-0 z-30 flex h-12 items-center justify-between border-b border-slate-200 bg-white px-4">
-                <Link to="/" className="font-semibold text-slate-900">
+            <header className="sticky top-0 z-30 flex h-12 items-center justify-between border-b border-line bg-surface px-4">
+                <Link to="/" className="font-semibold text-strong">
                     Converge
                 </Link>
                 <nav aria-label="Main" className="flex items-center gap-1">
-                    <Link to="/notifications" className="rounded-md px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-100">
+                    <Link to="/notifications" className="rounded-md px-3 py-1.5 text-sm text-body hover:bg-raised">
                         Mentions
                     </Link>
                     <NotificationBell />

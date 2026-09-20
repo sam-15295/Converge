@@ -44,45 +44,45 @@ const VersionHistoryDialog = ({ workspaceId, documentId, canRestore, open, onClo
     }
 
     return (
-        <div className="fixed inset-0 z-20 flex items-center justify-center bg-slate-900/40 p-4">
+        <div className="fixed inset-0 z-20 flex items-center justify-center bg-black/60 p-4">
             <div
                 ref={dialogRef}
                 role="dialog"
                 aria-modal="true"
                 aria-labelledby={titleId}
                 tabIndex={-1}
-                className="flex h-[min(44rem,calc(100dvh-2rem))] w-full max-w-5xl flex-col rounded-lg bg-white shadow-xl outline-none"
+                className="flex h-[min(44rem,calc(100dvh-2rem))] w-full max-w-5xl flex-col rounded-lg bg-surface shadow-xl outline-none"
             >
-                <header className="flex items-center justify-between gap-3 border-b border-slate-200 px-4 py-3">
-                    <h2 id={titleId} className="font-semibold text-slate-900">
+                <header className="flex items-center justify-between gap-3 border-b border-line px-4 py-3">
+                    <h2 id={titleId} className="font-semibold text-strong">
                         Version history
                     </h2>
                     <button
                         type="button"
                         onClick={onClose}
                         aria-label="Close the version history"
-                        className="rounded-md px-2 py-1 text-sm text-slate-600 hover:bg-slate-100"
+                        className="rounded-md px-2 py-1 text-sm text-body hover:bg-raised"
                     >
                         Close
                     </button>
                 </header>
 
                 {history.problem && (
-                    <p role="alert" className="border-b border-red-200 bg-red-50 px-4 py-2 text-sm text-red-700">
+                    <p role="alert" className="border-b border-danger-line bg-danger-bg px-4 py-2 text-sm text-danger">
                         {history.problem}
                     </p>
                 )}
                 {restored && (
-                    <p role="status" className="border-b border-green-200 bg-green-50 px-4 py-2 text-sm text-green-800">
+                    <p role="status" className="border-b border-success-line bg-success-bg px-4 py-2 text-sm text-success">
                         {restored}
                     </p>
                 )}
 
                 <div className="flex min-h-0 flex-1 flex-col sm:flex-row">
-                    <div className="flex min-h-0 w-full shrink-0 flex-col overflow-hidden border-b border-slate-200 sm:w-64 sm:border-r sm:border-b-0">
-                        {history.loading && <p className="p-4 text-sm text-slate-500">Loading the history…</p>}
+                    <div className="flex min-h-0 w-full shrink-0 flex-col overflow-hidden border-b border-line sm:w-64 sm:border-r sm:border-b-0">
+                        {history.loading && <p className="p-4 text-sm text-muted">Loading the history…</p>}
                         {!history.loading && history.versions.length === 0 && (
-                            <p className="p-4 text-sm text-slate-500">
+                            <p className="p-4 text-sm text-muted">
                                 No versions yet. One is kept each time somebody edits this document and then stops for a while.
                             </p>
                         )}
@@ -98,20 +98,20 @@ const VersionHistoryDialog = ({ workspaceId, documentId, canRestore, open, onClo
                         )}
                     </div>
 
-                    <div className="min-h-0 flex-1 overflow-y-auto bg-slate-50 p-4">
+                    <div className="min-h-0 flex-1 overflow-y-auto bg-raised p-4">
                         {selected && (
-                            <p className="mb-3 text-sm text-slate-600">
-                                <span className="font-medium text-slate-900">{selected.title}</span> as it was on{" "}
+                            <p className="mb-3 text-sm text-body">
+                                <span className="font-medium text-strong">{selected.title}</span> as it was on{" "}
                                 <time dateTime={selected.createdAt}>{formatTime(selected.createdAt)}</time>
                             </p>
                         )}
-                        {history.previewLoading && <p className="text-sm text-slate-500">Loading that version…</p>}
+                        {history.previewLoading && <p className="text-sm text-muted">Loading that version…</p>}
                         {history.preview && <VersionPreview key={history.preview.id} content={history.preview.content} />}
                     </div>
                 </div>
 
-                <footer className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-200 px-4 py-3">
-                    <p className="text-sm text-slate-500">
+                <footer className="flex flex-wrap items-center justify-between gap-2 border-t border-line px-4 py-3">
+                    <p className="text-sm text-muted">
                         {canRestore
                             ? "Putting a version back is an ordinary edit : it can be undone."
                             : "You can look through the history but not change the document."}
@@ -121,7 +121,7 @@ const VersionHistoryDialog = ({ workspaceId, documentId, canRestore, open, onClo
                             type="button"
                             disabled={!selected || history.restoring}
                             onClick={putBack}
-                            className="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700 disabled:opacity-50"
+                            className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary-hover disabled:opacity-50"
                         >
                             {history.restoring ? "Putting it back…" : "Restore this version"}
                         </button>

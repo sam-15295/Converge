@@ -21,7 +21,7 @@ const DocumentTitle = ({ workspaceId, documentId, initialTitle, canEdit })=>{
         }
     }
 
-    if(!canEdit) return <h1 className="text-2xl font-bold text-slate-900">{title}</h1>;
+    if(!canEdit) return <h1 className="text-2xl font-bold text-strong">{title}</h1>;
 
     return (
         <div>
@@ -31,10 +31,10 @@ const DocumentTitle = ({ workspaceId, documentId, initialTitle, canEdit })=>{
                 onChange={(e)=> setTitle(e.target.value)}
                 onBlur={save}
                 onKeyDown={(e)=> e.key === "Enter" && e.currentTarget.blur()}
-                className="w-full rounded-md border border-transparent px-1 py-1 text-2xl font-bold text-slate-900 hover:border-slate-200 focus:border-slate-300 focus:outline-none"
+                className="w-full rounded-md border border-transparent px-1 py-1 text-2xl font-bold text-strong hover:border-line focus:border-line-strong focus:outline-none"
             />
             {error && (
-                <p role="alert" className="text-sm text-red-600">
+                <p role="alert" className="text-sm text-danger">
                     {error}
                 </p>
             )}

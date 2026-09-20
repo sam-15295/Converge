@@ -40,7 +40,7 @@ const ChatPage = ()=>{
                 <span className="text-center">
                     {notFound ? "This workspace does not exist, or you are not a member of it." : error.message}
                     <br />
-                    <Link to="/" className="mt-3 inline-block font-medium text-slate-900 underline">
+                    <Link to="/" className="mt-3 inline-block font-medium text-strong underline">
                         Back to your workspaces
                     </Link>
                 </span>
@@ -52,12 +52,12 @@ const ChatPage = ()=>{
 
     return (
         <main className="mx-auto flex h-[calc(100dvh-3rem)] max-w-5xl flex-col px-4 py-6">
-            <Link to={`/workspace/${workspaceId}`} className="text-sm text-slate-600 underline">
+            <Link to={`/workspace/${workspaceId}`} className="text-sm text-body underline">
                 ← {workspace.name}
             </Link>
 
             <header className="mt-2 mb-3 flex flex-wrap items-center gap-3">
-                <h1 className="text-xl font-bold text-slate-900">{workspace.name} · Chat</h1>
+                <h1 className="text-xl font-bold text-strong">{workspace.name} · Chat</h1>
                 <RoleBadge role={role} />
             </header>
 

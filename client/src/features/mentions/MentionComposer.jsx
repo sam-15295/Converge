@@ -103,7 +103,7 @@ const MentionComposer = ({ onSend, label, placeholder, disabledReason, members =
     }
 
     if(disabledReason){
-        return <p className="rounded-md bg-slate-100 px-3 py-2 text-sm text-slate-600">{disabledReason}</p>;
+        return <p className="rounded-md bg-raised px-3 py-2 text-sm text-body">{disabledReason}</p>;
     }
 
     return (
@@ -114,7 +114,7 @@ const MentionComposer = ({ onSend, label, placeholder, disabledReason, members =
             }}
         >
             {error && (
-                <p role="alert" className="mb-2 text-sm text-red-600">
+                <p role="alert" className="mb-2 text-sm text-danger">
                     {error}
                 </p>
             )}
@@ -126,7 +126,7 @@ const MentionComposer = ({ onSend, label, placeholder, disabledReason, members =
                             id={listId}
                             role="listbox"
                             aria-label="People you can mention"
-                            className="absolute bottom-full left-0 z-10 mb-1 max-h-48 w-64 overflow-y-auto rounded-lg border border-slate-200 bg-white py-1 shadow-md"
+                            className="absolute bottom-full left-0 z-10 mb-1 max-h-48 w-64 overflow-y-auto rounded-lg border border-line bg-surface py-1 shadow-md"
                         >
                             {suggestions.map((member, index)=> (
                                 <li
@@ -140,7 +140,7 @@ const MentionComposer = ({ onSend, label, placeholder, disabledReason, members =
                                         choose(member);
                                     }}
                                     className={`cursor-pointer truncate px-3 py-1.5 text-sm ${
-                                        index === active ? "bg-blue-50 text-blue-900" : "text-slate-700 hover:bg-slate-50"
+                                        index === active ? "bg-info-bg text-info" : "text-body hover:bg-raised"
                                     }`}
                                 >
                                     {member.name}
@@ -163,13 +163,13 @@ const MentionComposer = ({ onSend, label, placeholder, disabledReason, members =
                         onChange={changed}
                         onSelect={(event)=> setCaret(event.target.selectionStart)}
                         onKeyDown={keyPressed}
-                        className="min-h-[3rem] w-full resize-none rounded-md border border-slate-300 px-3 py-2 text-slate-900 focus:border-slate-500 focus:outline-none"
+                        className="min-h-[3rem] w-full resize-none rounded-md border border-line-strong px-3 py-2 text-strong focus:border-primary focus:outline-none"
                     />
                 </div>
                 <button
                     type="submit"
                     disabled={sending || text.trim() === ""}
-                    className="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700 disabled:opacity-50"
+                    className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary-hover disabled:opacity-50"
                 >
                     {sending ? "Sending…" : "Send"}
                 </button>
@@ -178,7 +178,7 @@ const MentionComposer = ({ onSend, label, placeholder, disabledReason, members =
                 {listOpen ? `${suggestions.length} people match. Use the up and down arrow keys and Enter to choose.` : ""}
             </p>
             {text.length > maxLength - 500 && (
-                <p className="mt-1 text-right text-xs text-slate-500">
+                <p className="mt-1 text-right text-xs text-muted">
                     {text.length} / {maxLength}
                 </p>
             )}

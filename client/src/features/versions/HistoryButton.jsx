@@ -5,7 +5,7 @@ const HistoryButton = ({ open, onClick })=>{
             type="button"
             aria-expanded={open}
             onClick={onClick}
-            className="flex shrink-0 items-center gap-2 rounded-md border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-100"
+            className="flex shrink-0 items-center gap-2 rounded-md border border-line-strong px-3 py-1.5 text-sm font-medium text-body hover:bg-raised"
         >
             History
         </button>

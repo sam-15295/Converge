@@ -34,7 +34,7 @@ const LoginPage = ()=>{
             footer={
                 <>
                     No account yet?{" "}
-                    <Link to="/signup" className="font-medium text-slate-900 underline">
+                    <Link to="/signup" className="font-medium text-strong underline">
                         Sign up
                     </Link>
                 </>
@@ -60,14 +60,14 @@ const LoginPage = ()=>{
                     error={errors.fields.password}
                 />
                 {errors.form && (
-                    <p role="alert" className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">
+                    <p role="alert" className="rounded-md bg-danger-bg px-3 py-2 text-sm text-danger">
                         {errors.form}
                     </p>
                 )}
                 <button
                     type="submit"
                     disabled={submitting}
-                    className="w-full rounded-md bg-slate-900 px-3 py-2 text-sm font-medium text-white hover:bg-slate-700 disabled:opacity-60"
+                    className="w-full rounded-md bg-primary px-3 py-2 text-sm font-medium text-white hover:bg-primary-hover disabled:opacity-60"
                 >
                     {submitting ? "Logging in…" : "Log in"}
                 </button>

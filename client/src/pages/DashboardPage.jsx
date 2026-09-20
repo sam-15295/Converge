@@ -30,46 +30,46 @@ const DashboardPage = ()=>{
         <main className="mx-auto min-h-[calc(100dvh-3rem)] max-w-2xl px-4 py-10">
             <header className="flex items-start justify-between">
                 <div>
-                    <h1 className="text-2xl font-bold text-slate-900">Welcome, {user.name}</h1>
-                    <p className="text-sm text-slate-600">{user.email}</p>
+                    <h1 className="text-2xl font-bold text-strong">Welcome, {user.name}</h1>
+                    <p className="text-sm text-body">{user.email}</p>
                 </div>
                 <button
                     type="button"
                     onClick={handleLogout}
-                    className="rounded-md border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-100"
+                    className="rounded-md border border-line-strong px-3 py-1.5 text-sm font-medium text-body hover:bg-raised"
                 >
                     Log out
                 </button>
             </header>
             {logoutError && (
-                <p role="alert" className="mt-3 text-sm text-red-600">
+                <p role="alert" className="mt-3 text-sm text-danger">
                     {logoutError}
                 </p>
             )}
 
             <MyInvites onAccepted={workspaces.reload} />
 
-            <section className="mt-8 rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-                <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500">Your workspaces</h2>
+            <section className="mt-8 rounded-lg border border-line bg-surface p-5 shadow-sm">
+                <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted">Your workspaces</h2>
                 {workspaces.error && (
-                    <p role="alert" className="text-sm text-red-600">
+                    <p role="alert" className="text-sm text-danger">
                         {workspaces.error.message}
                     </p>
                 )}
                 {!workspaces.error && list.length === 0 && !workspaces.loading && (
-                    <p className="text-sm text-slate-500">You are not in any workspace yet. Create one below.</p>
+                    <p className="text-sm text-muted">You are not in any workspace yet. Create one below.</p>
                 )}
-                <ul className="divide-y divide-slate-100">
+                <ul className="divide-y divide-line">
                     {list.map((workspace)=> (
                         <li key={workspace.id}>
                             <Link
                                 to={`/workspace/${workspace.id}`}
-                                className="flex items-center justify-between py-3 hover:bg-slate-50"
+                                className="flex items-center justify-between py-3 hover:bg-raised"
                             >
                                 <span>
-                                    <span className="font-medium text-slate-900">{workspace.name}</span>
+                                    <span className="font-medium text-strong">{workspace.name}</span>
                                     {workspace.description && (
-                                        <span className="block text-sm text-slate-500">{workspace.description}</span>
+                                        <span className="block text-sm text-muted">{workspace.description}</span>
                                     )}
                                 </span>
                                 <RoleBadge role={workspace.role} />
@@ -77,17 +77,17 @@ const DashboardPage = ()=>{
                         </li>
                     ))}
                 </ul>
-                <div className="mt-4 border-t border-slate-100 pt-4">
+                <div className="mt-4 border-t border-line pt-4">
                     <CreateWorkspaceForm onCreated={workspaces.reload} />
                 </div>
             </section>
 
-            <section className="mt-6 rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-                <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500">Profile</h2>
+            <section className="mt-6 rounded-lg border border-line bg-surface p-5 shadow-sm">
+                <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted">Profile</h2>
                 <ProfileForm />
             </section>
 
-            <p className="mt-6 text-sm text-slate-500">
+            <p className="mt-6 text-sm text-muted">
                 <Link to="/status" className="underline">
                     System status
                 </Link>

@@ -56,18 +56,18 @@ const WorkspaceSettings = ({ workspace, role, permissions, onRenamed })=>{
                         error={errors.fields.name}
                     />
                     {errors.form && (
-                        <p role="alert" className="text-sm text-red-600">
+                        <p role="alert" className="text-sm text-danger">
                             {errors.form}
                         </p>
                     )}
                     {saved && (
-                        <p role="status" className="text-sm text-emerald-700">
+                        <p role="status" className="text-sm text-success">
                             Saved
                         </p>
                     )}
                     <button
                         type="submit"
-                        className="rounded-md bg-slate-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-700"
+                        className="rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-white hover:bg-primary-hover"
                     >
                         Save name
                     </button>
@@ -75,7 +75,7 @@ const WorkspaceSettings = ({ workspace, role, permissions, onRenamed })=>{
             )}
 
             {dangerError && (
-                <p role="alert" className="text-sm text-red-600">
+                <p role="alert" className="text-sm text-danger">
                     {dangerError}
                 </p>
             )}
@@ -84,7 +84,7 @@ const WorkspaceSettings = ({ workspace, role, permissions, onRenamed })=>{
                     <button
                         type="button"
                         onClick={()=> leaveOrDelete(leaveWorkspace, `Leave "${workspace.name}"?`)}
-                        className="rounded-md border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-100"
+                        className="rounded-md border border-line-strong px-3 py-1.5 text-sm font-medium text-body hover:bg-raised"
                     >
                         Leave workspace
                     </button>
@@ -98,7 +98,7 @@ const WorkspaceSettings = ({ workspace, role, permissions, onRenamed })=>{
                                 `Delete "${workspace.name}" for everyone? This cannot be undone.`
                             )
                         }
-                        className="rounded-md border border-red-300 px-3 py-1.5 text-sm font-medium text-red-700 hover:bg-red-50"
+                        className="rounded-md border border-danger-line px-3 py-1.5 text-sm font-medium text-danger hover:bg-danger-bg"
                     >
                         Delete workspace
                     </button>

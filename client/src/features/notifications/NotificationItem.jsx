@@ -13,14 +13,14 @@ const NotificationItem = ({ notification, onOpen, compact = false })=>{
             <button
                 type="button"
                 onClick={()=> onOpen(notification)}
-                className={`flex w-full items-start gap-3 px-3 py-2.5 text-left hover:bg-slate-50 ${read ? "" : "bg-blue-50"}`}
+                className={`flex w-full items-start gap-3 px-3 py-2.5 text-left hover:bg-raised ${read ? "" : "bg-info-bg"}`}
             >
                 <span
                     aria-hidden="true"
-                    className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${read ? "bg-transparent" : "bg-blue-600"}`}
+                    className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${read ? "bg-transparent" : "bg-info-solid"}`}
                 />
                 <span className="min-w-0 flex-1">
-                    <span className="block text-sm text-slate-900">
+                    <span className="block text-sm text-strong">
                         <span className="font-medium">{sender.name ?? "Someone"}</span> mentioned you in{" "}
                         {inDocument ? (
                             <>
@@ -31,11 +31,11 @@ const NotificationItem = ({ notification, onOpen, compact = false })=>{
                         )}
                     </span>
                     {preview && (
-                        <span className={`mt-0.5 block text-sm text-slate-600 ${compact ? "truncate" : "line-clamp-2"}`}>
+                        <span className={`mt-0.5 block text-sm text-body ${compact ? "truncate" : "line-clamp-2"}`}>
                             {preview.content}
                         </span>
                     )}
-                    <span className="mt-0.5 block text-xs text-slate-500">
+                    <span className="mt-0.5 block text-xs text-muted">
                         {inDocument && <>{workspace.name ?? "a workspace"} · </>}
                         <time dateTime={createdAt}>{timeAgo(createdAt)}</time>
                     </span>

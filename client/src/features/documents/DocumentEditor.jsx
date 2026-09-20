@@ -97,33 +97,33 @@ const CollaborativeEditor = ({ session, connection, canEditPermission, userName 
             {gone && (
                 <p
                     role="alert"
-                    className="mb-2 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700"
+                    className="mb-2 rounded-md border border-danger-line bg-danger-bg px-3 py-2 text-sm text-danger"
                 >
                     {connection.message}
                 </p>
             )}
             {!gone && connection.everSynced && !editable && (
-                <p className="mb-2 rounded-md bg-slate-100 px-3 py-2 text-sm text-slate-600">
+                <p className="mb-2 rounded-md bg-raised px-3 py-2 text-sm text-body">
                     You have read-only access to this document.
                 </p>
             )}
             {connection.status === "offline" && connection.everSynced && (
                 <p
                     role="status"
-                    className="mb-2 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900"
+                    className="mb-2 rounded-md border border-warn-line bg-warn-bg px-3 py-2 text-sm text-warn"
                 >
                     You are offline. Keep working : your changes are kept and will sync when the connection is back.
                 </p>
             )}
 
-            <div className="rounded-lg border border-slate-200 bg-white shadow-sm">
+            <div className="rounded-lg border border-line bg-surface shadow-sm">
                 {editable && <EditorToolbar editor={editor} />}
                 <EditorContent editor={editor} className="editor-content p-4" />
             </div>
 
             <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
                 <Collaborators awareness={provider.awareness} />
-                <p role="status" className="text-sm text-slate-500">
+                <p role="status" className="text-sm text-muted">
                     {connection.status === "connecting" && "Connecting…"}
                     {connection.status === "connected" && "Connected · changes are saved automatically"}
                     {connection.status === "offline" && "Offline"}

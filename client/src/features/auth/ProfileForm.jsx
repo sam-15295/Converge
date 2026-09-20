@@ -32,18 +32,18 @@ const ProfileForm = ()=>{
                 error={errors.fields.name}
             />
             {errors.form && (
-                <p role="alert" className="text-sm text-red-600">
+                <p role="alert" className="text-sm text-danger">
                     {errors.form}
                 </p>
             )}
             {saved && (
-                <p role="status" className="text-sm text-emerald-700">
+                <p role="status" className="text-sm text-success">
                     Saved
                 </p>
             )}
             <button
                 type="submit"
-                className="rounded-md bg-slate-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-700"
+                className="rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-white hover:bg-primary-hover"
             >
                 Save name
             </button>

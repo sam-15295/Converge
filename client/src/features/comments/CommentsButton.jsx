@@ -11,14 +11,14 @@ const CommentsButton = ()=>{
             aria-expanded={open}
             onClick={toggle}
             className={`flex shrink-0 items-center gap-2 rounded-md border px-3 py-1.5 text-sm font-medium ${
-                open ? "border-slate-900 bg-slate-900 text-white" : "border-slate-300 text-slate-700 hover:bg-slate-100"
+                open ? "border-primary bg-primary text-white" : "border-line-strong text-body hover:bg-raised"
             }`}
         >
             Comments
             {openCount > 0 && (
                 <span
                     aria-hidden="true"
-                    className={`min-w-5 rounded-full px-1.5 text-center text-xs leading-5 ${open ? "bg-white text-slate-900" : "bg-blue-600 text-white"}`}
+                    className={`min-w-5 rounded-full px-1.5 text-center text-xs leading-5 ${open ? "bg-surface text-strong" : "bg-info-solid text-white"}`}
                 >
                     {openCount}
                 </span>

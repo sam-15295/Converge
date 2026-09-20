@@ -36,14 +36,14 @@ const InviteForm = ({ workspaceId, assignableRoles, onInvited })=>{
                 error={errors.fields.email}
             />
             <div>
-                <label htmlFor="inviteRole" className="block text-sm font-medium text-slate-700">
+                <label htmlFor="inviteRole" className="block text-sm font-medium text-body">
                     Role
                 </label>
                 <select
                     id="inviteRole"
                     value={role}
                     onChange={(e)=> setRole(e.target.value)}
-                    className="mt-1 block rounded-md border border-slate-300 px-3 py-2 text-sm"
+                    className="mt-1 block rounded-md border border-line-strong px-3 py-2 text-sm"
                 >
                     {assignableRoles.map((option)=> (
                         <option key={option} value={option}>
@@ -51,17 +51,17 @@ const InviteForm = ({ workspaceId, assignableRoles, onInvited })=>{
                         </option>
                     ))}
                 </select>
-                {errors.fields.role && <p className="mt-1 text-sm text-red-600">{errors.fields.role}</p>}
+                {errors.fields.role && <p className="mt-1 text-sm text-danger">{errors.fields.role}</p>}
             </div>
             {errors.form && (
-                <p role="alert" className="text-sm text-red-600">
+                <p role="alert" className="text-sm text-danger">
                     {errors.form}
                 </p>
             )}
             <button
                 type="submit"
                 disabled={submitting}
-                className="rounded-md bg-slate-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-700 disabled:opacity-60"
+                className="rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-white hover:bg-primary-hover disabled:opacity-60"
             >
                 Send invitation
             </button>

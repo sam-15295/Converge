@@ -24,20 +24,20 @@ const VersionList = ({ versions, selectedId, onSelect, hasMore, onLoadMore, load
                                 type="button"
                                 aria-current={selected}
                                 onClick={()=> onSelect(version.id)}
-                                className={`w-full border-l-2 px-3 py-2 text-left text-sm hover:bg-slate-50 ${
-                                    selected ? "border-slate-900 bg-slate-50" : "border-transparent"
+                                className={`w-full border-l-2 px-3 py-2 text-left text-sm hover:bg-raised ${
+                                    selected ? "border-primary bg-raised" : "border-transparent"
                                 }`}
                             >
-                                <span className="block font-medium text-slate-900">
+                                <span className="block font-medium text-strong">
                                     <time dateTime={version.createdAt} title={formatTime(version.createdAt)}>
                                         {timeAgo(version.createdAt)}
                                     </time>
                                 </span>
-                                <span className="mt-0.5 block text-slate-600">
+                                <span className="mt-0.5 block text-body">
                                     {restored ? `Restored by ${version.createdBy?.name ?? "somebody"}` : `Edited by ${names(version.authors)}`}
                                 </span>
                                 {restored && (
-                                    <span className="mt-1 inline-block rounded bg-amber-100 px-1.5 py-0.5 text-xs font-medium text-amber-900">
+                                    <span className="mt-1 inline-block rounded bg-warn-bg px-1.5 py-0.5 text-xs font-medium text-warn">
                                         restored
                                     </span>
                                 )}
@@ -48,12 +48,12 @@ const VersionList = ({ versions, selectedId, onSelect, hasMore, onLoadMore, load
             </ul>
 
             {hasMore && (
-                <div className="border-t border-slate-200 p-2 text-center">
+                <div className="border-t border-line p-2 text-center">
                     <button
                         type="button"
                         disabled={loadingMore}
                         onClick={onLoadMore}
-                        className="rounded-md border border-slate-300 bg-white px-3 py-1 text-sm text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+                        className="rounded-md border border-line-strong bg-surface px-3 py-1 text-sm text-body hover:bg-raised disabled:opacity-50"
                     >
                         {loadingMore ? "Loading…" : "Load more"}
                     </button>

@@ -25,24 +25,24 @@ const PendingInvites = ({ workspaceId, canCancel, refreshKey })=>{
     return (
         <div>
             {error && (
-                <p role="alert" className="mb-2 text-sm text-red-600">
+                <p role="alert" className="mb-2 text-sm text-danger">
                     {error}
                 </p>
             )}
             {invites.length === 0 ? (
-                <p className="text-sm text-slate-500">No pending invitations.</p>
+                <p className="text-sm text-muted">No pending invitations.</p>
             ) : (
-                <ul className="divide-y divide-slate-100">
+                <ul className="divide-y divide-line">
                     {invites.map((invite)=> (
                         <li key={invite.id} className="flex flex-wrap items-center justify-between gap-2 py-2">
-                            <span className="text-sm text-slate-700">
+                            <span className="text-sm text-body">
                                 {invite.email} <RoleBadge role={invite.role} />
                             </span>
                             {canCancel && (
                                 <button
                                     type="button"
                                     onClick={()=> handleCancel(invite)}
-                                    className="rounded-md border border-slate-300 px-2 py-1 text-sm text-slate-700 hover:bg-slate-100"
+                                    className="rounded-md border border-line-strong px-2 py-1 text-sm text-body hover:bg-raised"
                                 >
                                     Cancel
                                 </button>

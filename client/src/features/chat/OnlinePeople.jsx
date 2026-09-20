@@ -13,14 +13,14 @@ const OnlinePeople = ({ members, onlineUserIds, currentUserId })=>{
                 return (
                     <li
                         key={member.userId}
-                        className="flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-2.5 py-0.5 text-sm text-slate-700"
+                        className="flex items-center gap-1.5 rounded-full border border-line bg-surface px-2.5 py-0.5 text-sm text-body"
                     >
                         <span
                             aria-hidden="true"
-                            className={`h-2 w-2 rounded-full ${isOnline ? "bg-emerald-500" : "bg-slate-300"}`}
+                            className={`h-2 w-2 rounded-full ${isOnline ? "bg-success-solid" : "bg-elevated"}`}
                         />
                         {member.name}
-                        {member.userId === currentUserId && <span className="text-slate-500">(you)</span>}
+                        {member.userId === currentUserId && <span className="text-muted">(you)</span>}
                         <span className="sr-only">{isOnline ? "online" : "offline"}</span>
                     </li>
                 );

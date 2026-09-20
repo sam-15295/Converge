@@ -8,13 +8,13 @@ const CommentItem = ({ comment, currentUserId, onDelete, domId, highlighted, isR
     const isMine = comment.author.id === currentUserId;
 
     return (
-        <div id={domId} className={`px-3 py-2 ${isReply ? "border-l-2 border-slate-200 pl-3" : ""} ${highlighted ? "flash-highlight" : ""}`}>
+        <div id={domId} className={`px-3 py-2 ${isReply ? "border-l-2 border-line pl-3" : ""} ${highlighted ? "flash-highlight" : ""}`}>
             <p className="flex flex-wrap items-baseline gap-x-2">
-                <span className="font-medium text-slate-900">
+                <span className="font-medium text-strong">
                     {comment.author.name ?? "Someone"}
-                    {isMine && <span className="font-normal text-slate-500"> (you)</span>}
+                    {isMine && <span className="font-normal text-muted"> (you)</span>}
                 </span>
-                <time dateTime={comment.createdAt} title={formatTime(comment.createdAt)} className="text-xs text-slate-500">
+                <time dateTime={comment.createdAt} title={formatTime(comment.createdAt)} className="text-xs text-muted">
                     {timeAgo(comment.createdAt)}
                 </time>
                 {onDelete && (
@@ -22,7 +22,7 @@ const CommentItem = ({ comment, currentUserId, onDelete, domId, highlighted, isR
                         type="button"
                         onClick={onDelete}
                         aria-label={isReply ? "Delete this reply" : "Delete this comment"}
-                        className="ml-auto text-xs text-slate-500 hover:text-red-700 hover:underline"
+                        className="ml-auto text-xs text-muted hover:text-danger hover:underline"
                     >
                         Delete
                     </button>

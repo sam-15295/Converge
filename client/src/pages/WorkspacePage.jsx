@@ -14,8 +14,8 @@ import { useFetch } from "../hooks/useFetch";
 
 const Section = ({ title, children })=>{
     return (
-        <section className="mt-6 rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-            <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500">{title}</h2>
+        <section className="mt-6 rounded-lg border border-line bg-surface p-5 shadow-sm">
+            <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted">{title}</h2>
             {children}
         </section>
     );
@@ -39,7 +39,7 @@ const WorkspacePage = ()=>{
                 <span className="text-center">
                     {notFound ? "This workspace does not exist, or you are not a member of it." : details.error.message}
                     <br />
-                    <Link to="/" className="mt-3 inline-block font-medium text-slate-900 underline">
+                    <Link to="/" className="mt-3 inline-block font-medium text-strong underline">
                         Back to your workspaces
                     </Link>
                 </span>
@@ -52,41 +52,41 @@ const WorkspacePage = ()=>{
 
     return (
         <main className="mx-auto min-h-[calc(100dvh-3rem)] max-w-2xl px-4 py-10">
-            <Link to="/" className="text-sm text-slate-600 underline">
+            <Link to="/" className="text-sm text-body underline">
                 ← Your workspaces
             </Link>
 
             <header className="mt-3 flex flex-wrap items-center gap-3">
-                <h1 className="text-2xl font-bold text-slate-900">{workspace.name}</h1>
+                <h1 className="text-2xl font-bold text-strong">{workspace.name}</h1>
                 <RoleBadge role={role} />
                 {permissions.includes("chat:view") && (
                     <Link
                         to={`/workspace/${workspaceId}/chat`}
-                        className="ml-auto rounded-md bg-slate-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-700"
+                        className="ml-auto rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-white hover:bg-primary-hover"
                     >
                         Open chat
                     </Link>
                 )}
             </header>
-            {workspace.description && <p className="mt-1 text-slate-600">{workspace.description}</p>}
+            {workspace.description && <p className="mt-1 text-body">{workspace.description}</p>}
 
             <Section title="Documents">
                 {(documents.data?.documents ?? []).length === 0 && !documents.loading && (
-                    <p className="text-sm text-slate-500">
+                    <p className="text-sm text-muted">
                         {permissions.includes("document:create")
                             ? "No documents yet. Create the first one below."
                             : "No documents yet."}
                     </p>
                 )}
-                <ul className="divide-y divide-slate-100">
+                <ul className="divide-y divide-line">
                     {(documents.data?.documents ?? []).map((document)=> (
                         <li key={document.id}>
                             <Link
                                 to={`/workspace/${workspaceId}/document/${document.id}`}
-                                className="flex items-center justify-between py-3 hover:bg-slate-50"
+                                className="flex items-center justify-between py-3 hover:bg-raised"
                             >
-                                <span className="font-medium text-slate-900">{document.title}</span>
-                                <span className="text-sm text-slate-500">
+                                <span className="font-medium text-strong">{document.title}</span>
+                                <span className="text-sm text-muted">
                                     {document.createdBy} · {new Date(document.updatedAt).toLocaleString()}
                                 </span>
                             </Link>
@@ -94,7 +94,7 @@ const WorkspacePage = ()=>{
                     ))}
                 </ul>
                 {permissions.includes("document:create") && (
-                    <div className="mt-4 border-t border-slate-100 pt-4">
+                    <div className="mt-4 border-t border-line pt-4">
                         <CreateDocumentForm
                             workspaceId={workspaceId}
                             onCreated={(document)=> navigate(`/workspace/${workspaceId}/document/${document.id}`)}

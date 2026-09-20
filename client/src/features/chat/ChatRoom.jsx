@@ -20,7 +20,7 @@ const ChatRoom = ({ workspaceId, currentUserId, members, focus })=>{
 
     if(chat.status === "denied"){
         return (
-            <div role="alert" className="rounded-lg border border-red-200 bg-red-50 px-4 py-6 text-center text-red-700">
+            <div role="alert" className="rounded-lg border border-danger-line bg-danger-bg px-4 py-6 text-center text-danger">
                 <p>{chat.notice}</p>
                 <Link to={`/workspace/${workspaceId}`} className="mt-3 inline-block font-medium underline">
                     Back to the workspace
@@ -36,7 +36,7 @@ const ChatRoom = ({ workspaceId, currentUserId, members, focus })=>{
             {chat.status !== "connected" && (
                 <p
                     role="status"
-                    className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900"
+                    className="rounded-md border border-warn-line bg-warn-bg px-3 py-2 text-sm text-warn"
                 >
                     {chat.status === "connecting"
                         ? "Connecting…"
@@ -47,7 +47,7 @@ const ChatRoom = ({ workspaceId, currentUserId, members, focus })=>{
             {chat.detached && (
                 <p
                     role="status"
-                    className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-blue-900"
+                    className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-info-line bg-info-bg px-3 py-2 text-sm text-info"
                 >
                     <span>
                         You are looking at older messages
@@ -62,7 +62,7 @@ const ChatRoom = ({ workspaceId, currentUserId, members, focus })=>{
             {chat.problem && (
                 <p
                     role="alert"
-                    className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700"
+                    className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-danger-line bg-danger-bg px-3 py-2 text-sm text-danger"
                 >
                     <span>{chat.problem}</span>
                     <span className="flex gap-3">

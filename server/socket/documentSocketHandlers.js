@@ -30,7 +30,9 @@ const maxViolations = 5;            // invalid updates before the connection is 
 const maxAwarenessBytes = 10 * 1024;
 const maxClientIdsPerSocket = 3;    // one editor = one Yjs client, a few are allowed for reconnections
 
-const colors = ["#e11d48", "#2563eb", "#059669", "#d97706", "#7c3aed", "#0891b2", "#db2777", "#65a30d", "#ea580c", "#4f46e5"];
+// Light, clearly different colours : they are drawn on the dark editor background, and the name label puts dark text
+// on top of them, so anything darker than this would be hard to see and hard to read.
+const colors = ["#fb7185", "#60a5fa", "#34d399", "#fbbf24", "#a78bfa", "#22d3ee", "#f472b6", "#a3e635", "#fb923c", "#818cf8"];
 
 // The colour of a person is chosen by the SERVER from their id, so it is the same for everybody and cannot be faked
 const colorOf = (userId)=> colors[parseInt(String(userId).slice(-6), 16) % colors.length];

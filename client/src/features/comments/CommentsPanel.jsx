@@ -27,7 +27,7 @@ const CommentsPanel = ()=>{
             type="button"
             aria-pressed={status === value}
             onClick={()=> status !== value && comments.showStatus(value)}
-            className={`rounded-md px-3 py-1 text-sm ${status === value ? "bg-slate-900 text-white" : "text-slate-700 hover:bg-slate-100"}`}
+            className={`rounded-md px-3 py-1 text-sm ${status === value ? "bg-primary text-white" : "text-body hover:bg-raised"}`}
         >
             {label}
         </button>
@@ -35,7 +35,7 @@ const CommentsPanel = ()=>{
 
     if(connection === "denied"){
         return (
-            <aside aria-label="Comments" className="rounded-lg border border-red-200 bg-red-50 px-4 py-6 text-center text-sm text-red-700">
+            <aside aria-label="Comments" className="rounded-lg border border-danger-line bg-danger-bg px-4 py-6 text-center text-sm text-danger">
                 <p role="alert">{notice}</p>
             </aside>
         );
@@ -45,13 +45,13 @@ const CommentsPanel = ()=>{
     const listed = linked ? threads.filter((thread)=> thread.id !== linked.thread.id) : threads;
 
     return (
-        <aside aria-label="Comments" className="flex max-h-[calc(100dvh-8rem)] min-h-0 flex-col rounded-lg border border-slate-200 bg-slate-50 shadow-sm">
-            <header className="flex items-center justify-between gap-2 border-b border-slate-200 bg-white px-3 py-2 rounded-t-lg">
-                <h2 className="font-semibold text-slate-900">Comments</h2>
-                <span className="text-sm text-slate-500">{openCount} open</span>
+        <aside aria-label="Comments" className="flex max-h-[calc(100dvh-8rem)] min-h-0 flex-col rounded-lg border border-line bg-raised shadow-sm">
+            <header className="flex items-center justify-between gap-2 border-b border-line bg-surface px-3 py-2 rounded-t-lg">
+                <h2 className="font-semibold text-strong">Comments</h2>
+                <span className="text-sm text-muted">{openCount} open</span>
             </header>
 
-            <div className="border-b border-slate-200 bg-white p-3">
+            <div className="border-b border-line bg-surface p-3">
                 <MentionComposer
                     label="Write a comment"
                     placeholder="Comment on this document…  (@ mentions somebody)"
@@ -69,13 +69,13 @@ const CommentsPanel = ()=>{
             </div>
 
             {connection !== "connected" && (
-                <p role="status" className="border-b border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+                <p role="status" className="border-b border-warn-line bg-warn-bg px-3 py-2 text-sm text-warn">
                     {connection === "connecting" ? "Connecting…" : "You are offline. Trying to reconnect : what you missed will appear when you are back."}
                 </p>
             )}
 
             {problem && (
-                <p role="alert" className="flex items-center justify-between gap-2 border-b border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                <p role="alert" className="flex items-center justify-between gap-2 border-b border-danger-line bg-danger-bg px-3 py-2 text-sm text-danger">
                     <span>{problem}</span>
                     <button type="button" onClick={comments.dismissProblem} className="font-medium underline">
                         Dismiss
@@ -84,7 +84,7 @@ const CommentsPanel = ()=>{
             )}
 
             {linkNotice && (
-                <p role="alert" className="flex items-center justify-between gap-2 border-b border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+                <p role="alert" className="flex items-center justify-between gap-2 border-b border-warn-line bg-warn-bg px-3 py-2 text-sm text-warn">
                     <span>{linkNotice}</span>
                     <button type="button" onClick={comments.clearLinked} className="font-medium underline">
                         Dismiss
@@ -92,7 +92,7 @@ const CommentsPanel = ()=>{
                 </p>
             )}
 
-            <div className="flex gap-1 border-b border-slate-200 bg-white px-3 py-2" role="group" aria-label="Which threads">
+            <div className="flex gap-1 border-b border-line bg-surface px-3 py-2" role="group" aria-label="Which threads">
                 {tab("Open", "open")}
                 {tab("Resolved", "resolved")}
             </div>
@@ -100,7 +100,7 @@ const CommentsPanel = ()=>{
             <div ref={listRef} className="min-h-0 flex-1 space-y-3 overflow-y-auto p-3">
                 {linked && (
                     <section aria-label="Linked comment">
-                        <p className="mb-1 flex items-center justify-between text-xs font-medium tracking-wide text-slate-500 uppercase">
+                        <p className="mb-1 flex items-center justify-between text-xs font-medium tracking-wide text-muted uppercase">
                             <span>Linked comment</span>
                             <button type="button" onClick={comments.clearLinked} className="normal-case underline">
                                 Close
@@ -112,9 +112,9 @@ const CommentsPanel = ()=>{
                     </section>
                 )}
 
-                {!loaded && !problem && <p className="py-4 text-center text-sm text-slate-500">Loading comments…</p>}
+                {!loaded && !problem && <p className="py-4 text-center text-sm text-muted">Loading comments…</p>}
                 {loaded && listed.length === 0 && !linked && (
-                    <p className="py-4 text-center text-sm text-slate-500">
+                    <p className="py-4 text-center text-sm text-muted">
                         {status === "open" ? "No open comments." : "No resolved comments."}
                     </p>
                 )}
@@ -131,7 +131,7 @@ const CommentsPanel = ()=>{
                             type="button"
                             disabled={loadingMore}
                             onClick={showMore}
-                            className="rounded-md border border-slate-300 bg-white px-3 py-1 text-sm text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+                            className="rounded-md border border-line-strong bg-surface px-3 py-1 text-sm text-body hover:bg-raised disabled:opacity-50"
                         >
                             {loadingMore ? "Loading…" : "Load more"}
                         </button>

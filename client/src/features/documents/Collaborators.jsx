@@ -19,7 +19,7 @@ const Collaborators = ({ awareness })=>{
         return ()=> awareness.off("change", update);
     }, [awareness]);
 
-    if(people.length === 0) return <p className="text-sm text-slate-500">Only you are here right now.</p>;
+    if(people.length === 0) return <p className="text-sm text-muted">Only you are here right now.</p>;
 
     return (
         <ul aria-label="People in this document" className="flex flex-wrap items-center gap-2">
@@ -27,7 +27,7 @@ const Collaborators = ({ awareness })=>{
                 <li
                     key={person.id}
                     title={person.name}
-                    className="flex items-center gap-1.5 rounded-full border border-slate-200 bg-white py-0.5 pr-2.5 pl-0.5 text-sm text-slate-700"
+                    className="flex items-center gap-1.5 rounded-full border border-line bg-surface py-0.5 pr-2.5 pl-0.5 text-sm text-body"
                 >
                     <span
                         aria-hidden="true"

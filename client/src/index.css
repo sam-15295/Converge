@@ -1,13 +1,92 @@
 @import "tailwindcss";
 
+/* ------------------------------------------------------------------------------------------------
+   The colours of the application, in ONE place.
+   Every screen is written with these names (bg-surface, text-muted, border-line ...) instead of raw
+   Tailwind colours, so the whole look can be changed here without touching a single component. That
+   is also what makes a light theme a later possibility rather than a rewrite.
+
+   The scale, darkest to lightest :  app  ->  surface  ->  raised  ->  elevated
+     app       the page behind everything
+     surface   cards, panels, the top bar, inputs
+     raised    hovers, badges, quiet panels inside a card
+     elevated  avatars and chips that must stand off the card
+   ------------------------------------------------------------------------------------------------ */
+@theme {
+    --color-app: #0a0f1c;
+    --color-surface: #121a2b;
+    --color-raised: #1a2336;
+    --color-elevated: #27314a;
+
+    --color-line: #232f47;
+    --color-line-strong: #33415e;
+
+    --color-strong: #eaf0fb;        /* headings and anything that must be read first */
+    --color-body: #c6d0e2;          /* normal text */
+    --color-muted: #8f9cb4;         /* times, counts, explanations */
+    --color-faint: #616e87;         /* disabled */
+
+    --color-primary: #4f5fe8;       /* the one accent : primary buttons, focus rings, the active tab */
+    --color-primary-hover: #6473f2;
+
+    /* States. Each one has: the text colour, a quiet background for a whole row, a stronger chip, and a border. */
+    --color-danger: #fca5a5;
+    --color-danger-bg: rgb(248 113 113 / 0.12);
+    --color-danger-chip: rgb(248 113 113 / 0.26);
+    --color-danger-line: rgb(248 113 113 / 0.38);
+    --color-danger-solid: #dc2626;
+
+    --color-warn: #fcd77a;
+    --color-warn-bg: rgb(251 191 36 / 0.12);
+    --color-warn-chip: rgb(251 191 36 / 0.30);
+    --color-warn-line: rgb(251 191 36 / 0.38);
+
+    --color-info: #9ec5fe;
+    --color-info-bg: rgb(96 165 250 / 0.12);
+    --color-info-chip: rgb(96 165 250 / 0.26);
+    --color-info-line: rgb(96 165 250 / 0.38);
+    --color-info-solid: #2563eb;
+
+    --color-success: #7ee2b8;
+    --color-success-bg: rgb(52 211 153 / 0.12);
+    --color-success-chip: rgb(52 211 153 / 0.26);
+    --color-success-line: rgb(52 211 153 / 0.38);
+    --color-success-solid: #10b981;
+
+    --color-accent: #d3b4fb;
+    --color-accent-chip: rgb(167 139 250 / 0.26);
+}
+
+@layer base {
+    /* Tells the browser this is a dark page, so scrollbars, form controls and the space around the page follow. */
+    :root {
+        color-scheme: dark;
+    }
+
+    body {
+        background-color: var(--color-app);
+        color: var(--color-body);
+        -webkit-font-smoothing: antialiased;
+    }
+
+    ::placeholder {
+        color: var(--color-faint);
+    }
+
+    ::selection {
+        background-color: rgb(79 95 232 / 0.45);
+        color: var(--color-strong);
+    }
+}
+
 /* The message a link points at flashes for a moment, so the eye finds it. */
 @keyframes flash-highlight {
     from {
-        box-shadow: 0 0 0 3px rgb(59 130 246 / 0.55);
-        background-color: rgb(219 234 254);
+        box-shadow: 0 0 0 3px rgb(129 140 248 / 0.7);
+        background-color: rgb(99 102 241 / 0.22);
     }
     to {
-        box-shadow: 0 0 0 3px rgb(59 130 246 / 0);
+        box-shadow: 0 0 0 3px rgb(129 140 248 / 0);
     }
 }
 .flash-highlight {
@@ -17,7 +96,7 @@
 @media (prefers-reduced-motion: reduce) {
     .flash-highlight {
         animation: none;
-        background-color: rgb(219 234 254);
+        background-color: rgb(99 102 241 / 0.22);
     }
 }
 
@@ -25,9 +104,15 @@
 .editor-content .ProseMirror {
     min-height: 320px;
     outline: none;
+    color: var(--color-body);
 }
 .editor-content .ProseMirror > * + * {
     margin-top: 0.75em;
+}
+.editor-content .ProseMirror h1,
+.editor-content .ProseMirror h2,
+.editor-content .ProseMirror h3 {
+    color: var(--color-strong);
 }
 .editor-content .ProseMirror h1 {
     font-size: 1.75rem;
@@ -50,20 +135,22 @@
     padding-left: 1.5rem;
 }
 .editor-content .ProseMirror blockquote {
-    border-left: 3px solid #cbd5e1;
+    border-left: 3px solid var(--color-line-strong);
     padding-left: 1rem;
-    color: #475569;
+    color: var(--color-muted);
 }
 .editor-content .ProseMirror code {
-    background: #f1f5f9;
+    background: var(--color-elevated);
+    color: var(--color-strong);
     border-radius: 0.25rem;
     padding: 0.1rem 0.3rem;
     font-family: ui-monospace, monospace;
     font-size: 0.9em;
 }
 .editor-content .ProseMirror pre {
-    background: #0f172a;
-    color: #e2e8f0;
+    background: #060a14;
+    color: #dbe3f4;
+    border: 1px solid var(--color-line);
     border-radius: 0.5rem;
     padding: 0.75rem 1rem;
     overflow-x: auto;
@@ -75,10 +162,10 @@
 }
 .editor-content .ProseMirror hr {
     border: none;
-    border-top: 1px solid #cbd5e1;
+    border-top: 1px solid var(--color-line);
 }
 .editor-content .ProseMirror a {
-    color: #1d4ed8;
+    color: var(--color-info);
     text-decoration: underline;
 }
 
@@ -87,8 +174,8 @@
     position: relative;
     margin-left: -1px;
     margin-right: -1px;
-    border-left: 1px solid #0d0d0d;
-    border-right: 1px solid #0d0d0d;
+    border-left: 1px solid currentColor;
+    border-right: 1px solid currentColor;
     word-break: normal;
     pointer-events: none;
 }
@@ -101,7 +188,7 @@
     line-height: normal;
     padding: 0.1rem 0.3rem;
     border-radius: 3px 3px 3px 0;
-    color: #fff;
+    color: #0a0f1c;
     white-space: nowrap;
     user-select: none;
     pointer-events: none;

@@ -24,10 +24,10 @@ const MyInvites = ({ onAccepted })=>{
     if(invites.length === 0 && !error) return null;
 
     return (
-        <section className="mt-8 rounded-lg border border-amber-200 bg-amber-50 p-5">
-            <h2 className="text-sm font-semibold uppercase tracking-wide text-amber-800">Invitations for you</h2>
+        <section className="mt-8 rounded-lg border border-warn-line bg-warn-bg p-5">
+            <h2 className="text-sm font-semibold uppercase tracking-wide text-warn">Invitations for you</h2>
             {error && (
-                <p role="alert" className="mt-2 text-sm text-red-600">
+                <p role="alert" className="mt-2 text-sm text-danger">
                     {error}
                 </p>
             )}
@@ -35,8 +35,8 @@ const MyInvites = ({ onAccepted })=>{
                 {invites.map((invite)=> (
                     <li key={invite.id} className="flex flex-wrap items-center justify-between gap-2">
                         <div>
-                            <p className="font-medium text-slate-900">{invite.workspace.name}</p>
-                            <p className="text-sm text-slate-600">
+                            <p className="font-medium text-strong">{invite.workspace.name}</p>
+                            <p className="text-sm text-body">
                                 {invite.invitedBy} invited you as <RoleBadge role={invite.role} />
                             </p>
                         </div>
@@ -44,14 +44,14 @@ const MyInvites = ({ onAccepted })=>{
                             <button
                                 type="button"
                                 onClick={()=> respond(acceptInvite, invite)}
-                                className="rounded-md bg-slate-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-700"
+                                className="rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-white hover:bg-primary-hover"
                             >
                                 Accept
                             </button>
                             <button
                                 type="button"
                                 onClick={()=> respond(declineInvite, invite)}
-                                className="rounded-md border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-white"
+                                className="rounded-md border border-line-strong px-3 py-1.5 text-sm font-medium text-body hover:bg-surface"
                             >
                                 Decline
                             </button>

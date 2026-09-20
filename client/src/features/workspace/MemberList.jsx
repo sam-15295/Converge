@@ -22,16 +22,16 @@ const MemberList = ({ workspaceId, members, assignableRoles, onChanged })=>{
     return (
         <div>
             {error && (
-                <p role="alert" className="mb-2 text-sm text-red-600">
+                <p role="alert" className="mb-2 text-sm text-danger">
                     {error}
                 </p>
             )}
-            <ul className="divide-y divide-slate-100">
+            <ul className="divide-y divide-line">
                 {members.map((member)=> (
                     <li key={member.userId} className="flex flex-wrap items-center justify-between gap-2 py-3">
                         <div>
-                            <p className="font-medium text-slate-900">{member.name}</p>
-                            <p className="text-sm text-slate-500">{member.email}</p>
+                            <p className="font-medium text-strong">{member.name}</p>
+                            <p className="text-sm text-muted">{member.email}</p>
                         </div>
                         <div className="flex items-center gap-2">
                             {member.canChangeRole ? (
@@ -41,7 +41,7 @@ const MemberList = ({ workspaceId, members, assignableRoles, onChanged })=>{
                                     onChange={(e) =>
                                         run(()=> changeMemberRole(workspaceId, member.userId, e.target.value))
                                     }
-                                    className="rounded-md border border-slate-300 px-2 py-1 text-sm"
+                                    className="rounded-md border border-line-strong px-2 py-1 text-sm"
                                 >
                                     {assignableRoles.map((role)=> (
                                         <option key={role} value={role}>
@@ -60,7 +60,7 @@ const MemberList = ({ workspaceId, members, assignableRoles, onChanged })=>{
                                             run(()=> removeMember(workspaceId, member.userId));
                                         }
                                     }}
-                                    className="rounded-md border border-red-200 px-2 py-1 text-sm text-red-700 hover:bg-red-50"
+                                    className="rounded-md border border-danger-line px-2 py-1 text-sm text-danger hover:bg-danger-bg"
                                 >
                                     Remove
                                 </button>

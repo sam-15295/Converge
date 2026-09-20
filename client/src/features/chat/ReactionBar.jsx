@@ -28,8 +28,8 @@ const ReactionBar = ({ message, currentUserId, canReact, names, onToggle })=>{
                         onClick={()=> onToggle(message, emoji)}
                         className={`rounded-full border px-2 py-0.5 text-sm disabled:cursor-default ${
                             mine
-                                ? "border-blue-300 bg-blue-50 text-blue-800"
-                                : "border-slate-200 bg-white text-slate-700 enabled:hover:bg-slate-50"
+                                ? "border-info-line bg-info-bg text-info"
+                                : "border-line bg-surface text-body enabled:hover:bg-raised"
                         }`}
                     >
                         <span aria-hidden="true">{emoji}</span> {userIds.length}
@@ -49,20 +49,20 @@ const ReactionBar = ({ message, currentUserId, canReact, names, onToggle })=>{
                         aria-label="Add a reaction"
                         aria-expanded={picking}
                         onClick={()=> setPicking((open)=> !open)}
-                        className="rounded-full border border-dashed border-slate-300 px-2 py-0.5 text-sm text-slate-500 hover:bg-slate-50"
+                        className="rounded-full border border-dashed border-line-strong px-2 py-0.5 text-sm text-muted hover:bg-raised"
                     >
                         +
                     </button>
                     {/* opens UPWARDS : the list of messages scrolls and would cut off something that opens downwards */}
                     {picking && (
-                        <div className="absolute bottom-full left-0 z-10 mb-1 flex gap-1 rounded-lg border border-slate-200 bg-white p-1 shadow-md">
+                        <div className="absolute bottom-full left-0 z-10 mb-1 flex gap-1 rounded-lg border border-line bg-surface p-1 shadow-md">
                             {reactionOptions.map((emoji)=> (
                                 <button
                                     key={emoji}
                                     type="button"
                                     aria-label={`React with ${emoji}`}
                                     onClick={()=> choose(emoji)}
-                                    className="rounded-md px-1.5 py-1 text-lg hover:bg-slate-100"
+                                    className="rounded-md px-1.5 py-1 text-lg hover:bg-raised"
                                 >
                                     {emoji}
                                 </button>

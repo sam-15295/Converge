@@ -33,14 +33,14 @@ const CreateWorkspaceForm = ({ onCreated })=>{
                 error={errors.fields.name}
             />
             {errors.form && (
-                <p role="alert" className="text-sm text-red-600">
+                <p role="alert" className="text-sm text-danger">
                     {errors.form}
                 </p>
             )}
             <button
                 type="submit"
                 disabled={submitting}
-                className="rounded-md bg-slate-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-700 disabled:opacity-60"
+                className="rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-white hover:bg-primary-hover disabled:opacity-60"
             >
                 Create workspace
             </button>

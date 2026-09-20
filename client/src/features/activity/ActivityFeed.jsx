@@ -63,43 +63,43 @@ const ActivityFeed = ({ workspaceId })=>{
         setLoadingMore(false);
     }, [workspaceId]);
 
-    if(state.loading) return <p className="text-sm text-slate-500">Loading…</p>;
+    if(state.loading) return <p className="text-sm text-muted">Loading…</p>;
 
     if(state.problem){
         return (
-            <p role="alert" className="text-sm text-red-600">
+            <p role="alert" className="text-sm text-danger">
                 Could not load the activity : {state.problem}
             </p>
         );
     }
 
     if(state.activities.length === 0){
-        return <p className="text-sm text-slate-500">Nothing has happened here yet.</p>;
+        return <p className="text-sm text-muted">Nothing has happened here yet.</p>;
     }
 
     return (
         <div>
-            <ul aria-label="Activity" className="divide-y divide-slate-100">
+            <ul aria-label="Activity" className="divide-y divide-line">
                 {state.activities.map((entry)=>{
                     const { verb, document, subject } = sentence(entry);
 
                     return (
-                        <li key={entry.id} className="py-2 text-sm text-slate-700">
-                            <span className="font-medium text-slate-900">{entry.actor?.name ?? "Somebody"}</span> {verb}
+                        <li key={entry.id} className="py-2 text-sm text-body">
+                            <span className="font-medium text-strong">{entry.actor?.name ?? "Somebody"}</span> {verb}
                             {document && entry.document && (
                                 <>
                                     {" "}
                                     <Link
                                         to={`/workspace/${workspaceId}/document/${entry.document.id}`}
-                                        className="font-medium text-slate-900 underline"
+                                        className="font-medium text-strong underline"
                                     >
                                         {entry.document.title}
                                     </Link>
                                 </>
                             )}
-                            {subject && <> <span className="font-medium text-slate-900">{entry.subject?.name ?? "somebody"}</span></>}
+                            {subject && <> <span className="font-medium text-strong">{entry.subject?.name ?? "somebody"}</span></>}
                             {" · "}
-                            <time dateTime={entry.createdAt} title={formatTime(entry.createdAt)} className="text-slate-500">
+                            <time dateTime={entry.createdAt} title={formatTime(entry.createdAt)} className="text-muted">
                                 {timeAgo(entry.createdAt)}
                             </time>
                         </li>
@@ -113,7 +113,7 @@ const ActivityFeed = ({ workspaceId })=>{
                         type="button"
                         disabled={loadingMore}
                         onClick={loadMore}
-                        className="rounded-md border border-slate-300 bg-white px-3 py-1 text-sm text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+                        className="rounded-md border border-line-strong bg-surface px-3 py-1 text-sm text-body hover:bg-raised disabled:opacity-50"
                     >
                         {loadingMore ? "Loading…" : "Load more"}
                     </button>

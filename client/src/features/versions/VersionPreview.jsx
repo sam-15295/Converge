@@ -13,7 +13,7 @@ const VersionPreview = ({ content })=>{
     }, [content]);
 
     return (
-        <div className="rounded-md border border-slate-200 bg-white p-4">
+        <div className="rounded-md border border-line bg-surface p-4">
             <EditorContent editor={editor} className="tiptap-readonly" />
         </div>
     );

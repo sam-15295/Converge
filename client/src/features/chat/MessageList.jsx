@@ -31,7 +31,7 @@ const MessageList = ({ chat, currentUserId, canReact, names })=>{
             role="log"
             aria-label="Chat messages"
             aria-live="polite"
-            className="min-h-0 flex-1 overflow-y-auto rounded-lg border border-slate-200 bg-white px-3 py-2 shadow-sm"
+            className="min-h-0 flex-1 overflow-y-auto rounded-lg border border-line bg-surface px-3 py-2 shadow-sm"
         >
             {chat.hasMoreOlder && (
                 <div className="py-2 text-center">
@@ -39,21 +39,21 @@ const MessageList = ({ chat, currentUserId, canReact, names })=>{
                         type="button"
                         disabled={loadingOlder}
                         onClick={showOlder}
-                        className="rounded-md border border-slate-300 px-3 py-1 text-sm text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+                        className="rounded-md border border-line-strong px-3 py-1 text-sm text-body hover:bg-raised disabled:opacity-50"
                     >
                         {loadingOlder ? "Loading…" : "Load older messages"}
                     </button>
                 </div>
             )}
 
-            {!chat.loaded && !chat.problem && <p className="py-6 text-center text-sm text-slate-500">Loading messages…</p>}
+            {!chat.loaded && !chat.problem && <p className="py-6 text-center text-sm text-muted">Loading messages…</p>}
             {chat.loaded && chat.messages.length === 0 && (
-                <p className="py-6 text-center text-sm text-slate-500">
+                <p className="py-6 text-center text-sm text-muted">
                     No messages yet.{chat.canSend ? " Say hello!" : ""}
                 </p>
             )}
 
-            <ul className="divide-y divide-slate-100">
+            <ul className="divide-y divide-line">
                 {chat.messages.map((message)=>{
                     const focused = chat.focus?.id === message.id;
 
@@ -81,7 +81,7 @@ const MessageList = ({ chat, currentUserId, canReact, names })=>{
                         type="button"
                         disabled={loadingNewer}
                         onClick={showNewer}
-                        className="rounded-md border border-slate-300 px-3 py-1 text-sm text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+                        className="rounded-md border border-line-strong px-3 py-1 text-sm text-body hover:bg-raised disabled:opacity-50"
                     >
                         {loadingNewer ? "Loading…" : "Load newer messages"}
                     </button>

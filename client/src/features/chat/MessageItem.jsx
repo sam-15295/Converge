@@ -14,21 +14,21 @@ const MessageItem = ({ message, currentUserId, canReact, canReply, names, onTogg
     const showThreadButton = onOpenThread && (replies > 0 || canReply);
 
     return (
-        <li id={domId} className={`flex gap-3 px-1 py-2 ${mentionsMe ? "rounded-md bg-amber-50" : ""} ${highlighted ? "flash-highlight" : ""}`}>
+        <li id={domId} className={`flex gap-3 px-1 py-2 ${mentionsMe ? "rounded-md bg-warn-bg" : ""} ${highlighted ? "flash-highlight" : ""}`}>
             <span
                 aria-hidden="true"
-                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-200 text-sm font-semibold text-slate-700"
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-elevated text-sm font-semibold text-body"
             >
                 {message.sender.name.slice(0, 1).toUpperCase()}
             </span>
 
             <div className="min-w-0 flex-1">
                 <p className="flex flex-wrap items-baseline gap-x-2">
-                    <span className="font-medium text-slate-900">
+                    <span className="font-medium text-strong">
                         {message.sender.name}
-                        {isMine && <span className="font-normal text-slate-500"> (you)</span>}
+                        {isMine && <span className="font-normal text-muted"> (you)</span>}
                     </span>
-                    <time dateTime={message.createdAt} className="text-xs text-slate-500">
+                    <time dateTime={message.createdAt} className="text-xs text-muted">
                         {formatTime(message.createdAt)}
                     </time>
                     {mentionsMe && <span className="sr-only">mentions you</span>}
@@ -48,7 +48,7 @@ const MessageItem = ({ message, currentUserId, canReact, canReply, names, onTogg
                     <button
                         type="button"
                         onClick={()=> onOpenThread(message.id)}
-                        className="mt-1 text-sm font-medium text-blue-700 hover:underline"
+                        className="mt-1 text-sm font-medium text-info hover:underline"
                     >
                         {replies === 0 ? "Reply" : `${replies} ${replies === 1 ? "reply" : "replies"}`}
                     </button>

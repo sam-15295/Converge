@@ -26,14 +26,14 @@ const ThreadPanel = ({ chat, parent, currentUserId, canReact, names, members })=
     }
 
     return (
-        <aside aria-label="Thread" className="flex min-h-0 flex-1 flex-col rounded-lg border border-slate-200 bg-white shadow-sm">
-            <header className="flex items-center justify-between border-b border-slate-200 px-4 py-3">
-                <h2 className="font-semibold text-slate-900">Thread</h2>
+        <aside aria-label="Thread" className="flex min-h-0 flex-1 flex-col rounded-lg border border-line bg-surface shadow-sm">
+            <header className="flex items-center justify-between border-b border-line px-4 py-3">
+                <h2 className="font-semibold text-strong">Thread</h2>
                 <button
                     type="button"
                     onClick={chat.closeThread}
                     aria-label="Close the thread"
-                    className="rounded-md px-2 py-1 text-slate-500 hover:bg-slate-100"
+                    className="rounded-md px-2 py-1 text-muted hover:bg-raised"
                 >
                     ✕
                 </button>
@@ -41,7 +41,7 @@ const ThreadPanel = ({ chat, parent, currentUserId, canReact, names, members })=
 
             <div ref={listRef} onScroll={handleScroll} className="min-h-0 flex-1 overflow-y-auto px-3">
                 {parent && (
-                    <ul className="border-b border-slate-200">
+                    <ul className="border-b border-line">
                         <MessageItem
                             message={parent}
                             currentUserId={currentUserId}
@@ -58,18 +58,18 @@ const ThreadPanel = ({ chat, parent, currentUserId, canReact, names, members })=
                             type="button"
                             disabled={loadingOlder}
                             onClick={showOlder}
-                            className="rounded-md border border-slate-300 px-3 py-1 text-sm text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+                            className="rounded-md border border-line-strong px-3 py-1 text-sm text-body hover:bg-raised disabled:opacity-50"
                         >
                             {loadingOlder ? "Loading…" : "Load earlier replies"}
                         </button>
                     </div>
                 )}
-                {!thread.loaded && <p className="py-4 text-center text-sm text-slate-500">Loading replies…</p>}
+                {!thread.loaded && <p className="py-4 text-center text-sm text-muted">Loading replies…</p>}
                 {thread.loaded && thread.messages.length === 0 && (
-                    <p className="py-4 text-center text-sm text-slate-500">No replies yet.</p>
+                    <p className="py-4 text-center text-sm text-muted">No replies yet.</p>
                 )}
 
-                <ul aria-label="Replies" className="divide-y divide-slate-100">
+                <ul aria-label="Replies" className="divide-y divide-line">
                     {thread.messages.map((reply)=>{
                         const focused = thread.focus?.id === reply.id;
 
@@ -94,7 +94,7 @@ const ThreadPanel = ({ chat, parent, currentUserId, canReact, names, members })=
                             type="button"
                             disabled={loadingNewer}
                             onClick={showNewer}
-                            className="rounded-md border border-slate-300 px-3 py-1 text-sm text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+                            className="rounded-md border border-line-strong px-3 py-1 text-sm text-body hover:bg-raised disabled:opacity-50"
                         >
                             {loadingNewer ? "Loading…" : "Load newer replies"}
                         </button>
@@ -102,7 +102,7 @@ const ThreadPanel = ({ chat, parent, currentUserId, canReact, names, members })=
                 )}
             </div>
 
-            <div className="border-t border-slate-200 p-3">
+            <div className="border-t border-line p-3">
                 <MentionComposer
                     // a new composer for every thread, so a half-written reply does not move to another thread
                     key={thread.parentId}

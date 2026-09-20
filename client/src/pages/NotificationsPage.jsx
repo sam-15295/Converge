@@ -19,18 +19,18 @@ const NotificationList = ({ onlyUnread })=>{
     return (
         <div>
             {list.problem && (
-                <p role="alert" className="mb-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                <p role="alert" className="mb-3 rounded-md border border-danger-line bg-danger-bg px-3 py-2 text-sm text-danger">
                     {list.problem}
                 </p>
             )}
-            {!list.problem && !list.loaded && <p className="py-8 text-center text-sm text-slate-500">Loading…</p>}
+            {!list.problem && !list.loaded && <p className="py-8 text-center text-sm text-muted">Loading…</p>}
             {list.loaded && list.items.length === 0 && (
-                <p className="py-8 text-center text-sm text-slate-500">
+                <p className="py-8 text-center text-sm text-muted">
                     {onlyUnread ? "No unread mentions." : "No mentions yet. When somebody mentions you, it shows up here."}
                 </p>
             )}
 
-            <ul aria-label="Mentions" className="divide-y divide-slate-100 overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm empty:hidden">
+            <ul aria-label="Mentions" className="divide-y divide-line overflow-hidden rounded-lg border border-line bg-surface shadow-sm empty:hidden">
                 {list.items.map((notification)=> (
                     <NotificationItem key={notification.id} notification={notification} onOpen={open} />
                 ))}
@@ -42,7 +42,7 @@ const NotificationList = ({ onlyUnread })=>{
                         type="button"
                         disabled={loadingMore}
                         onClick={showMore}
-                        className="rounded-md border border-slate-300 px-4 py-1.5 text-sm text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+                        className="rounded-md border border-line-strong px-4 py-1.5 text-sm text-body hover:bg-raised disabled:opacity-50"
                     >
                         {loadingMore ? "Loading…" : "Load more"}
                     </button>
@@ -74,7 +74,7 @@ const NotificationsPage = ()=>{
             aria-pressed={onlyUnread === value}
             onClick={()=> setOnlyUnread(value)}
             className={`rounded-md px-3 py-1 text-sm ${
-                onlyUnread === value ? "bg-slate-900 text-white" : "text-slate-700 hover:bg-slate-100"
+                onlyUnread === value ? "bg-primary text-white" : "text-body hover:bg-raised"
             }`}
         >
             {label}
@@ -85,8 +85,8 @@ const NotificationsPage = ()=>{
         <main className="mx-auto min-h-[calc(100dvh-3rem)] max-w-2xl px-4 py-8">
             <header className="mb-4 flex flex-wrap items-end justify-between gap-3">
                 <div>
-                    <h1 className="text-2xl font-bold text-slate-900">Mentions</h1>
-                    <p className="text-sm text-slate-600">
+                    <h1 className="text-2xl font-bold text-strong">Mentions</h1>
+                    <p className="text-sm text-body">
                         {unreadCount === 0 ? "You are all caught up." : `${unreadCount} unread`}
                     </p>
                 </div>
@@ -94,14 +94,14 @@ const NotificationsPage = ()=>{
                     type="button"
                     disabled={unreadCount === 0}
                     onClick={handleMarkAll}
-                    className="rounded-md border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-100 disabled:opacity-50"
+                    className="rounded-md border border-line-strong px-3 py-1.5 text-sm font-medium text-body hover:bg-raised disabled:opacity-50"
                 >
                     Mark all as read
                 </button>
             </header>
 
             {error && (
-                <p role="alert" className="mb-3 text-sm text-red-600">
+                <p role="alert" className="mb-3 text-sm text-danger">
                     {error}
                 </p>
             )}

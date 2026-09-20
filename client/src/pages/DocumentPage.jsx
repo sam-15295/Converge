@@ -49,7 +49,7 @@ const DocumentPage = ()=>{
                     <br />
                     <Link
                         to={`/workspace/${workspaceId}`}
-                        className="mt-3 inline-block font-medium text-slate-900 underline"
+                        className="mt-3 inline-block font-medium text-strong underline"
                     >
                         Back to the workspace
                     </Link>
@@ -84,7 +84,7 @@ const DocumentPage = ()=>{
         >
             <main className="mx-auto min-h-[calc(100dvh-3rem)] max-w-6xl px-4 py-10">
                 <DocumentColumns>
-                    <Link to={`/workspace/${workspaceId}`} className="text-sm text-slate-600 underline">
+                    <Link to={`/workspace/${workspaceId}`} className="text-sm text-body underline">
                         ← Back to the workspace
                     </Link>
 
@@ -111,16 +111,16 @@ const DocumentPage = ()=>{
                     />
 
                     {canDelete && (
-                        <div className="mt-8 border-t border-slate-200 pt-4">
+                        <div className="mt-8 border-t border-line pt-4">
                             {deleteError && (
-                                <p role="alert" className="mb-2 text-sm text-red-600">
+                                <p role="alert" className="mb-2 text-sm text-danger">
                                     {deleteError}
                                 </p>
                             )}
                             <button
                                 type="button"
                                 onClick={handleDelete}
-                                className="rounded-md border border-red-300 px-3 py-1.5 text-sm font-medium text-red-700 hover:bg-red-50"
+                                className="rounded-md border border-danger-line px-3 py-1.5 text-sm font-medium text-danger hover:bg-danger-bg"
                             >
                                 Delete document
                             </button>

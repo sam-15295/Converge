@@ -97,11 +97,11 @@ const EditorToolbar = ({ editor })=>{
         <div
             role="toolbar"
             aria-label="Formatting"
-            className="flex flex-wrap items-center gap-1 border-b border-slate-200 p-2"
+            className="flex flex-wrap items-center gap-1 border-b border-line p-2"
         >
             {buttons.map((button, index) =>
                 button.divider ? (
-                    <span key={index} className="mx-1 h-5 w-px bg-slate-200" aria-hidden="true" />
+                    <span key={index} className="mx-1 h-5 w-px bg-elevated" aria-hidden="true" />
                 ) : (
                     <button
                         key={button.title}
@@ -113,8 +113,8 @@ const EditorToolbar = ({ editor })=>{
                         // onMouseDown + preventDefault keeps the text selection in the editor when a button is pressed
                         onMouseDown={(e)=> e.preventDefault()}
                         onClick={button.run}
-                        className={`rounded px-2 py-1 text-sm hover:bg-slate-100 disabled:opacity-40 ${button.className ?? ""} ${
-                            button.active ? "bg-slate-200 text-slate-900" : "text-slate-700"
+                        className={`rounded px-2 py-1 text-sm hover:bg-raised disabled:opacity-40 ${button.className ?? ""} ${
+                            button.active ? "bg-elevated text-strong" : "text-body"
                         }`}
                     >
                         {button.label}

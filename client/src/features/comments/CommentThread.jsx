@@ -43,19 +43,19 @@ const CommentThread = ({ thread, highlight })=>{
     }
 
     return (
-        <li className={`rounded-lg border bg-white ${thread.resolved ? "border-slate-200 bg-slate-50" : "border-slate-300"}`}>
+        <li className={`rounded-lg border bg-surface ${thread.resolved ? "border-line bg-raised" : "border-line-strong"}`}>
             {item(thread, false)}
             {thread.replies.map((reply)=> item(reply, true))}
 
-            <div className="border-t border-slate-100 px-3 py-2">
+            <div className="border-t border-line px-3 py-2">
                 {thread.resolved ? (
-                    <p className="flex flex-wrap items-center justify-between gap-2 text-sm text-slate-600">
+                    <p className="flex flex-wrap items-center justify-between gap-2 text-sm text-body">
                         <span>
                             Resolved{thread.resolvedBy?.name ? ` by ${thread.resolvedBy.name}` : ""}{" "}
                             {thread.resolvedAt && <time dateTime={thread.resolvedAt}>{timeAgo(thread.resolvedAt)}</time>}
                         </span>
                         {canComment && (
-                            <button type="button" onClick={()=> reopen(thread.id)} className="font-medium text-blue-700 hover:underline">
+                            <button type="button" onClick={()=> reopen(thread.id)} className="font-medium text-info hover:underline">
                                 Reopen
                             </button>
                         )}
@@ -76,10 +76,10 @@ const CommentThread = ({ thread, highlight })=>{
                             />
                         ) : (
                             <div className="flex items-center justify-between gap-2">
-                                <button type="button" onClick={()=> setReplying(true)} className="text-sm font-medium text-blue-700 hover:underline">
+                                <button type="button" onClick={()=> setReplying(true)} className="text-sm font-medium text-info hover:underline">
                                     Reply
                                 </button>
-                                <button type="button" onClick={()=> resolve(thread.id)} className="text-sm text-slate-600 hover:underline">
+                                <button type="button" onClick={()=> resolve(thread.id)} className="text-sm text-body hover:underline">
                                     Resolve
                                 </button>
                             </div>
