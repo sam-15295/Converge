@@ -2,6 +2,11 @@ import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import { defineConfig } from "vite";
 
+// Which backend this dev server talks to. It is almost always the only one (port 5000), but running a SECOND pair
+// (a backend and a Vite) is how you watch two servers work together through Redis in a real browser:
+//   VITE_API_TARGET=http://localhost:5001 npx vite --port 5174
+const apiTarget = process.env.VITE_API_TARGET ?? "http://localhost:5000";
+
 // https://vite.dev/config/
 export default defineConfig({
     plugins: [react(), tailwindcss()],
@@ -16,9 +21,9 @@ export default defineConfig({
         // /api requests to Express, so there are no CORS issues and cookies (Phase 2) just work.
         // Socket.IO will be proxied here too in a later phase.
         proxy: {
-            "/api": "http://localhost:5000",
+            "/api": apiTarget,
             // real-time editing : the WebSocket connection has to be forwarded as well ("ws")
-            "/socket.io": { target: "http://localhost:5000", ws: true }
+            "/socket.io": { target: apiTarget, ws: true }
         }
     }
 });
