@@ -14,7 +14,7 @@ A real-time collaborative workspace for teams: shared documents (Yjs), workspace
 | Auth     | JWT in HTTP-only cookies, bcrypt (bcryptjs)       |
 | Database | MongoDB                                           |
 | Real time | Socket.IO (WebSockets), Yjs (CRDT)               |
-| Later    | Redis (added in its phase)                        |
+| Scaling  | Redis (optional): Socket.IO adapter, presence, rate limits, document relay |
 
 ## Project structure
 
@@ -45,6 +45,7 @@ client/src/
 
 - Node.js 20+
 - MongoDB running locally (default `mongodb://127.0.0.1:27017`)
+- Redis (optional) — only needed to run several backend instances; without it everything works as one server
 
 ## Setup
 
@@ -80,6 +81,8 @@ only talks to `localhost:5173`.
 | `NOTIFICATION_RATE_LIMIT_MAX` | `120`           | Notification requests (list, count, mark as read) per person per minute |
 | `VERSION_QUIET_SECONDS` | `120`                 | How long a document must be quiet before its editing session counts as finished |
 | `VERSION_MIN_GAP_SECONDS` | `300`               | The shortest time between two versions of the same document |
+| `REDIS_URL`           | *(optional)*            | Turns on everything in [Running more than one server](#running-more-than-one-server-redis). Unset or empty = single server, in memory |
+| `PRESENCE_HEARTBEAT_SECONDS` | `15`             | How often each server confirms its own people are still online (Redis only) |
 
 Variables are validated with Zod at startup; the server exits with a clear message if any is invalid.
 
@@ -210,7 +213,7 @@ Browser A: TipTap <-> Yjs doc                 Browser B: TipTap <-> Yjs doc
 - Every incoming Yjs update is decoded and checked against the same whitelist as saved documents (allowed node types, marks and attributes; links only `http`, `https` or `mailto`) before it is applied or forwarded, and the whole document is checked again before it is saved.
 - Presence is controlled by the server: names and colours come from the logged in user, a Yjs client id belongs to the first connection that uses it, and cursors are cleaned.
 - Limits: 1 MB per message, a message rate per connection, and a size limit per document.
-- Limitation: the rooms live in one server process. Running several instances needs Redis Pub/Sub (planned).
+- Several instances: each server keeps its own copy of an open document, held together over Redis. See [Running more than one server](#running-more-than-one-server-redis).
 
 ### Workspace chat
 
@@ -269,7 +272,7 @@ In the browser the arrow keys move in the list, Enter or Tab (or a click) choose
 - Every chat query is scoped to the workspace in the URL: a message id from another workspace is "not found".
 - Message text is shown as plain text by React, so nothing a person writes can run as HTML.
 - A mention can only point at a member of the workspace; the name and the visibility of a mention are decided by the server, and the mention list is limited to 20.
-- Limitations: the list of people offered by `@` is loaded when the chat page opens (somebody who joined later appears after a reload, somebody who left is refused by the server with a clear message); names are matched case-sensitively, and a stored name is a snapshot (old messages keep the name a person had then); presence and the rate-limit counters live in one server process (Redis in a later phase); messages cannot be edited or deleted yet; a reaction given while a browser was offline shows up on the recent messages after it reconnects, and on very old ones after a reload.
+- Limitations: the list of people offered by `@` is loaded when the chat page opens (somebody who joined later appears after a reload, somebody who left is refused by the server with a clear message); names are matched case-sensitively, and a stored name is a snapshot (old messages keep the name a person had then); presence and the rate-limit counters are shared through Redis when `REDIS_URL` is set, and live in one process otherwise; messages cannot be edited or deleted yet; a reaction given while a browser was offline shows up on the recent messages after it reconnects, and on very old ones after a reload.
 
 ### Notifications and the mentions inbox
 
@@ -295,7 +298,7 @@ POST /messages -> save -> event mention:created -> listener saves a Notification
 - **The bell** is in a top bar around every logged in page. There is one connection per tab, and every push carries the count the *server* worked out, so the number never depends on counting in the browser. Two tabs of the same person always agree. The dropdown shows the latest notifications, `/notifications` is the mentions inbox (All / Unread, "Load more", "Mark all as read"), and both read themselves again every time the live connection joins (after a lost connection, and also when the first connection comes up a moment after the list was read), because the server only pushes from the moment of the join.
 - **Deep links.** A notification leads to `/workspace/:id/chat?message=<id>` (and `&reply=<id>` for a mention inside a thread). The message may be far back in the history, so the chat asks for a *window* around it: `GET /api/workspace/:id/messages?around=<id>` (also for a thread's `/replies`) returns the message with some before and some after it, `limit` in all, and whether there is more on each side. The chat then shows that stretch of the past, scrolls to the message and flashes it, and enters a "you are looking at older messages" mode: live messages are only counted (added, they would appear after a gap), "Load newer messages" reads on, and "Jump to latest" (or sending a message) returns to the present. A link to a message that does not exist opens the chat normally, with an explanation. A mention in a **comment** leads to `/workspace/:id/document/:docId?comment=<threadId>` (and `&reply=<id>` inside a thread), see the next section.
 - **Security of notifications:** every endpoint needs a login and is limited to the caller's own notifications (`NOTIFICATION_RATE_LIMIT_MAX` per person per minute); ids are checked before they reach the database; names and previews are shown as text, never as HTML.
-- Limitations: the unread count and the rate limits live in one server process (Redis in a later phase); mentions (in the chat and in comments) are the only kind of notification so far (a reply to your comment, and invitations, do not notify yet); a notification is created even if the person is looking at that chat right now; the count pushed by two notifications that arrive at the same instant can briefly show the smaller number, and the next push or a reload corrects it.
+- Limitations: mentions (in the chat and in comments) are the only kind of notification so far (a reply to your comment, and invitations, do not notify yet); a notification is created even if the person is looking at that chat right now; the count pushed by two notifications that arrive at the same instant can briefly show the smaller number, and the next push or a reload corrects it.
 
 ### Document comments
 
@@ -337,7 +340,7 @@ A tab has one document's comments open at a time. **Reconnecting:** the browser 
 - The socket join needs a login, membership and `comment:view`, and the document must belong to the workspace; every failure gets the same answer. Membership is checked again once the tab is registered, so a person removed during the join does not stay in. A tab that closes during the join is dropped without a second check.
 - Removing a member, leaving, deleting the document or the workspace closes the open comments of the people concerned. A role change keeps a reader and only tells the browser whether it may still write.
 - Comment text, names and the document title in notifications are shown as text by React, never as HTML. Comments have their own rate limit (`CHAT_RATE_LIMIT_MAX` per person per 10 seconds, counted separately from chat) and joining is limited to 10 per 10 seconds per connection.
-- Limitations: comments belong to the whole document, they are not attached to a text selection; a comment cannot be edited, only deleted; nobody is notified that somebody replied to their thread (only mentions notify); the people offered by `@` are loaded when the page opens; on a narrow screen the panel sits below the editor; a draft that was not sent is lost if the connection drops while it is being written (the box is replaced by an explanation while offline, like in the chat); an ADMIN promoted or demoted while the page is open sees the Delete buttons change after a reload (the server always enforces the real role); the counters of the rate limits live in one server process (Redis in a later phase).
+- Limitations: comments belong to the whole document, they are not attached to a text selection; a comment cannot be edited, only deleted; nobody is notified that somebody replied to their thread (only mentions notify); the people offered by `@` are loaded when the page opens; on a narrow screen the panel sits below the editor; a draft that was not sent is lost if the connection drops while it is being written (the box is replaced by an explanation while offline, like in the chat); an ADMIN promoted or demoted while the page is open sees the Delete buttons change after a reload (the server always enforces the real role).
 
 ### Version history
 
@@ -386,7 +389,7 @@ restore button.
 
 - Limitations: no diff between versions (you see each one whole); restoring brings back the text, not the title, because
   the title is renamed separately and bringing it back would surprise people; a version is the whole document, so
-  history costs storage proportional to document size times 50; the timers live in one server process (Redis, Phase 11).
+  history costs storage proportional to document size times 50; with several servers the timers are per server, and Redis decides which one writes the version (so there is exactly one, crediting everybody who typed).
 
 ### Workspace activity feed
 
@@ -415,6 +418,57 @@ read it.
 
 - Limitations: the feed is read when the page opens and with *Load more*, it is not pushed live (a feed is something you
   look at, not a conversation); it is not filtered per person, and there is no "only documents" view yet.
+
+### Running more than one server (Redis)
+
+Redis is **optional**. With no `REDIS_URL` the application behaves exactly as a single server that keeps everything in
+memory. Set `REDIS_URL`, start the same code as several instances, and they behave as one system.
+
+The reason it is needed: MongoDB is shared, so everything already **stored** is fine — but a server also keeps a lot
+in **memory** (socket rooms, who is online, rate-limit counters, the live copy of every open document), and a second
+server has its own. Redis is the shared memory the servers did not have.
+
+| Used for | Why it exists | What breaks without it |
+| -------- | ------------- | ---------------------- |
+| Socket.IO adapter | a broadcast must reach sockets on other servers | a chat message reaches only half the workspace |
+| Presence (sorted set per workspace) | "who is online" is a question about everybody | colleagues on the other server look offline |
+| Rate-limit counters | a budget belongs to a person, not to a server | N servers means N times the limit |
+| One event channel | three events must run on every server | somebody removed stays in the chat on another server |
+| A channel per open document | every server needs the whole live document | saved work is missing the other server's edits |
+| A short lock per document | one writer at a time | a stale copy overwrites a newer one |
+| A claim key per document | one version per editing session | duplicate versions, each crediting half the people |
+
+**Broadcasts.** `@socket.io/redis-adapter` publishes every `io.to(room).emit(...)` to Redis as well, and the other
+servers replay it to their own sockets — so every existing handler became cluster-wide without being changed. Both
+sides use the WebSocket transport only, so there are no sticky sessions to configure.
+
+**Presence.** A sorted set per workspace whose score is "last confirmed at". Every server refreshes its own entries
+every `PRESENCE_HEARTBEAT_SECONDS`, and entries older than three heartbeats are ignored and swept away, so the people
+of a server that crashed fade out instead of staying online for ever. Each server also keeps a local map of the
+sockets it holds, because those are the only ones it can act on.
+
+**Rate limits.** The counters move into Redis (`rate-limit-redis`), so a limit is one budget per person rather than
+one per server. Each limiter has its own key prefix. If Redis is unreachable the limiters let requests through
+instead of locking everybody out — they are abuse protection, not authorization.
+
+**Events that must reach every server.** `membership:changed`, `workspace:deleted` and `document:deleted` are
+published on one channel and replayed into each server's event bus, so somebody removed from a workspace is sent out
+of the chat on whichever server they are connected to. Events whose handlers write to the database stay local, so
+nothing is stored twice.
+
+**Live documents.** Every open document gets a channel (`doc:<documentId>`). Each server passes on the updates it
+applies, applies what the others send, and asks the others for their copy when it opens the document. This is not
+about the browsers — the adapter already keeps them in sync — it is about each server's **own** copy, which is what
+gets saved, versioned, and handed to the next person who opens the document.
+
+**Saving and versioning.** A save takes a short lock (`SET NX PX`, released by a script that only deletes the key if
+it is still ours), so one server saves a document at a time; a server that cannot take it simply saves a moment
+later. Every save also merges what is already stored first — merging a CRDT only ever adds, so a write can never
+remove somebody else's work. The same kind of key elects one server to write the version of an editing session, and
+the people who typed on each server are collected in a Redis set so that one version credits all of them.
+
+**Not used for caching.** Nothing here is slow enough to justify a cache, and stale data is the last thing a
+real-time application needs. Every use above is shared state between processes, not a cache.
 
 ### Authentication and security
 
