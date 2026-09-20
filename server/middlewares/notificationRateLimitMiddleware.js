@@ -6,7 +6,8 @@ import createUserLimiter from "./createUserLimiter.js";
 const notificationRateLimitMiddleware = createUserLimiter({
     windowMs : 60 * 1000,
     limit : env.NOTIFICATION_RATE_LIMIT_MAX,
-    message : "Too many requests. Please slow down."
+    message : "Too many requests. Please slow down.",
+    prefix : "rl:notification:"
 });
 
 export default notificationRateLimitMiddleware;

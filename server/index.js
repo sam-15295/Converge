@@ -1,6 +1,5 @@
 import http from "node:http";
 import mongoose from "mongoose";
-import app from "./app.js";
 import env from "./config/env.js";
 import connectDB from "./config/database.js";
 import {closeRedis, connectRedis} from "./config/redis.js";
@@ -15,6 +14,12 @@ const startServer = async ()=>{
         // Redis, when REDIS_URL is set : what several servers use to reach each other. Connected BEFORE the sockets,
         // because the socket layer asks for it while starting.
         await connectRedis();
+
+        // The app is loaded only NOW, once Redis is connected. The rate limiters ask Redis for their shared counters
+        // the MOMENT they are built, so importing app.js any earlier would build them while there is no connection :
+        // their store would fail to start and, because a broken store lets requests through rather than refusing them,
+        // nothing would be limited at all.
+        const {default : app} = await import("./app.js");
 
         // one HTTP server for both the REST API (Express) and the real-time connections (Socket.IO), on the same port
         const server = http.createServer(app);

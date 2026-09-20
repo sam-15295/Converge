@@ -6,7 +6,8 @@ import createUserLimiter from "./createUserLimiter.js";
 const commentRateLimitMiddleware = createUserLimiter({
     windowMs : 10 * 1000,
     limit : env.CHAT_RATE_LIMIT_MAX,
-    message : "You are commenting too fast. Please slow down."
+    message : "You are commenting too fast. Please slow down.",
+    prefix : "rl:comment:"
 });
 
 export default commentRateLimitMiddleware;
