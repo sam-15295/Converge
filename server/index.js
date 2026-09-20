@@ -6,6 +6,7 @@ import {closeRedis, connectRedis} from "./config/redis.js";
 import createSocketServer, {closeSocketServer} from "./socket/socketServer.js";
 import {attachNotificationListeners} from "./events/notificationListeners.js";
 import {attachActivityListeners} from "./events/activityListeners.js";
+import {attachDistributedEvents} from "./events/distributedEvents.js";
 
 const startServer = async ()=>{
     try{
@@ -29,6 +30,9 @@ const startServer = async ()=>{
         // (the listeners live as long as the process, so nothing has to remove them)
         attachNotificationListeners();
         attachActivityListeners();
+
+        // and the few events that EVERY server has to hear, not only the one that served the request
+        await attachDistributedEvents();
 
         server.listen(env.PORT, ()=>{
             console.log(`Server has started listening at port ${env.PORT}`);
