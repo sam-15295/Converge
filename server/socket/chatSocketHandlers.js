@@ -1,7 +1,7 @@
 import WorkspaceMember from "../model/workspaceMemberSchema.js";
 import {can} from "../config/permissions.js";
 import appEvents from "../events/appEvents.js";
-import {addPresence, removePresence, onlineUserIds, socketIdsIn} from "../service/presenceService.js";
+import {addPresence, removePresence, onlineUserIds, localSocketIdsIn} from "../service/presenceService.js";
 
 // The real-time side of the workspace chat.
 //
@@ -36,7 +36,7 @@ const attachChatHandlers = (io)=>{
     // ---------- joining and leaving ----------
 
     // announce = false : leave without telling the others (used when they never heard that this person arrived)
-    const leaveChat = (socket, announce = true)=>{
+    const leaveChat = async (socket, announce = true)=>{
         const current = socket.data.chat;
 
         if(!current){
@@ -45,8 +45,9 @@ const attachChatHandlers = (io)=>{
         socket.data.chat = null;
         socket.leave(chatRoom(current.workspaceId));
 
-        // Only when this was the person's LAST socket in the workspace do the others hear that they went offline
-        if(removePresence(current.workspaceId, socket.data.user.id, socket.id) && announce){
+        // Only when this was the person's last socket in the workspace ON ANY SERVER do the others hear that they
+        // went offline : another tab of theirs may be connected somewhere else.
+        if(await removePresence(current.workspaceId, socket.data.user.id, socket.id) && announce){
             io.to(chatRoom(current.workspaceId)).emit("presence:update", {userId : socket.data.user.id, online : false});
         }
     }
@@ -90,16 +91,16 @@ const attachChatHandlers = (io)=>{
 
             // opening the same chat again (a repeated join) changes nothing, so nobody sees the person flicker offline and online
             if(socket.data.chat?.workspaceId !== workspaceId){
-                leaveChat(socket);      // one workspace chat per connection
+                await leaveChat(socket);     // one workspace chat per connection, and it must finish before the new join
 
                 socket.join(chatRoom(workspaceId));
                 socket.data.chat = {workspaceId};
-                const cameOnline = addPresence(workspaceId, userId, socket.id);
+                const cameOnline = await addPresence(workspaceId, userId, socket.id);
 
                 // If the person was removed while we were checking above, the removal found nobody to remove (we were not
                 // registered yet) and would never be noticed. Now that we are registered, ask once more.
                 if(!(await allowedMembership(workspaceId, userId))){
-                    leaveChat(socket, false);
+                    await leaveChat(socket, false);
                     return reply(notFound);
                 }
 
@@ -112,7 +113,7 @@ const attachChatHandlers = (io)=>{
             reply({
                 ok : true,
                 canSend : can(membership.role, "chat:send"),
-                onlineUserIds : onlineUserIds(workspaceId)
+                onlineUserIds : await onlineUserIds(workspaceId)
             });
         }
         catch(err){
@@ -123,8 +124,8 @@ const attachChatHandlers = (io)=>{
 
     const onConnection = (socket)=>{
         socket.on("chat:join", (payload, ack)=> onJoin(socket, payload, ack));
-        socket.on("chat:leave", ()=> leaveChat(socket));
-        socket.on("disconnect", ()=> leaveChat(socket));
+        socket.on("chat:leave", ()=> leaveChat(socket).catch((err)=> console.log(err)));
+        socket.on("disconnect", ()=> leaveChat(socket).catch((err)=> console.log(err)));
     }
 
     io.on("connection", onConnection);
@@ -144,7 +145,8 @@ const attachChatHandlers = (io)=>{
     // Someone was removed, left, or got another role : do they still have the right to read this chat?
     const onMembershipChanged = async ({workspaceId, userId})=>{
         try{
-            const socketIds = socketIdsIn(workspaceId, userId);
+            // only this server's sockets : the other servers handle their own (see the distributed events)
+            const socketIds = localSocketIdsIn(workspaceId, userId);
 
             if(socketIds.length === 0){
                 return;
@@ -164,7 +166,7 @@ const attachChatHandlers = (io)=>{
                 }
                 else{
                     socket.emit("chat:error", {code : "ACCESS_REVOKED", message : "You no longer have access to this chat"});
-                    leaveChat(socket);
+                    await leaveChat(socket);
                 }
             }
         }
@@ -173,13 +175,13 @@ const attachChatHandlers = (io)=>{
         }
     }
 
-    const onWorkspaceDeleted = ({workspaceId})=>{
-        for(const socketId of socketIdsIn(workspaceId)){
+    const onWorkspaceDeleted = async ({workspaceId})=>{
+        for(const socketId of localSocketIdsIn(workspaceId)){
             const socket = io.sockets.sockets.get(socketId);
 
             if(socket){
                 socket.emit("chat:error", {code : "WORKSPACE_DELETED", message : "This workspace was deleted"});
-                leaveChat(socket);
+                await leaveChat(socket);
             }
         }
     }

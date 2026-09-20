@@ -9,7 +9,7 @@ import attachNotificationHandlers from "./notificationSocketHandlers.js";
 import attachCommentHandlers from "./commentSocketHandlers.js";
 import {flushAllRooms, resetRooms} from "../service/docRoomService.js";
 import {flushAllVersions} from "../service/versionScheduler.js";
-import {resetPresence} from "../service/presenceService.js";
+import {clearPresenceOfThisServer, resetPresence, startPresenceHeartbeat} from "../service/presenceService.js";
 
 const allowedOrigin = new URL(env.CLIENT_URL).origin;
 
@@ -64,6 +64,9 @@ const createSocketServer = async (httpServer)=>{
     // before the handlers, so no broadcast can happen while the adapter is still being set up
     await attachRedisAdapter(io);
 
+    // tells the other servers, again and again, that the people connected here are still here
+    startPresenceHeartbeat();
+
     io.use(socketAuthMiddleware);
     io.detachDocumentHandlers = attachDocumentHandlers(io);
     io.detachChatHandlers = attachChatHandlers(io);
@@ -84,6 +87,9 @@ export const closeSocketServer = async (io)=>{
     io.disconnectSockets(true);     // do not wait for a client that is stuck
     await new Promise((resolve)=> io.close(resolve));
     await io.redisSubscriber?.quit().catch(()=> {});
+
+    // take this server's people out of the shared view now, instead of leaving them to fade out
+    await clearPresenceOfThisServer();
     await resetRooms();
     resetPresence();
 }

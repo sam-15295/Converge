@@ -31,6 +31,10 @@ const envSchema = z.object({
     // a value that is there but wrong still fails loudly.
     REDIS_URL : z.preprocess((value)=> (value === "" ? undefined : value), z.string().url().optional()),
 
+    // how often a server confirms that its people are still connected (the shared presence in Redis).
+    // Anything not confirmed for three heartbeats is treated as gone, which is how a crashed server's people fade out.
+    PRESENCE_HEARTBEAT_SECONDS : z.coerce.number().positive().default(15),
+
     // version history : how long a document must be quiet before the editing session counts as finished,
     // and the shortest time between two versions of the same document (see service/versionScheduler.js)
     VERSION_QUIET_SECONDS : z.coerce.number().positive().default(120),
