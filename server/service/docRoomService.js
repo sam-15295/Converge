@@ -4,6 +4,8 @@ import Document from "../model/documentSchema.js";
 import {jsonToYDoc, yDocToJSON, encodeState} from "./yjsService.js";
 import {findContentProblem} from "../validators/documentContentValidator.js";
 import {endSession, forgetDocument, noteEdit, onBeforeVersion, resetVersionScheduler} from "./versionScheduler.js";
+import {askOthersForTheDocument, closeDocRelay, docRelayOrigin, joinDocRelay, leaveDocRelay} from "./docRelay.js";
+import {withLock} from "./redisLock.js";
 
 // One "room" = one document that people have open right now.
 // The room holds the live Yjs document in memory (the server's copy, which every editor syncs with)
@@ -13,10 +15,12 @@ import {endSession, forgetDocument, noteEdit, onBeforeVersion, resetVersionSched
 //                   people type                       -> updates are applied here and saved (at most every 2 seconds)
 //                   last person leaves                -> saved, then removed from memory after a short grace period
 //
-// The room lives in THIS process's memory. With several server instances two rooms of the same document would
-// diverge, which is what Redis Pub/Sub solves in Phase 11.
+// Every server that has the document open keeps its OWN copy of it in memory. They are held together by the relay
+// (service/docRelay.js) : each server passes on the edits it receives, and asks the others for their copy when it
+// opens a document. Saving happens one server at a time, under a lock, and always merges what is already stored.
 
 const saveDelayMs = 2000;           // saves are throttled : at most one every 2 seconds while people type
+const saveLockMs = 5000;            // long enough for one save, short enough that a dead server frees it quickly
 const closeDelayMs = 5000;          // a room stays in memory a moment after the last person leaves (page reloads)
 const maxDocumentBytes = 8 * 1024 * 1024;   // safety valve : a document may not grow beyond this
 
@@ -35,6 +39,10 @@ const loadRoom = async (documentId)=>{
 
     const doc = new Y.Doc();
     let needsFirstSave = false;
+
+    // Listening starts BEFORE the document is read, so an edit made on another server while we are reading is not
+    // missed : it is simply applied on top.
+    await joinDocRelay({documentId : String(documentId), doc});
 
     if(stored.yjsState && stored.yjsState.length > 0){
         Y.applyUpdate(doc, new Uint8Array(stored.yjsState));
@@ -68,6 +76,10 @@ const loadRoom = async (documentId)=>{
     room.awareness.setLocalState(null);
 
     rooms.set(room.documentId, room);
+
+    // What the database holds can be a couple of seconds behind what somebody is typing on another server right
+    // now, so the others are asked for their copy before anybody is given this one.
+    await askOthersForTheDocument(room);
 
     if(needsFirstSave){
         room.dirty = true;
@@ -123,31 +135,52 @@ export const persistRoom = (room)=>{
 
         room.dirty = false;     // changes that arrive WHILE saving set it again and cause another save
 
-        try{
-            const json = yDocToJSON(room.doc);
-            const problem = findContentProblem(json);
+        // Only one server may save a document at a time. Two saving together could each write their own copy, and the
+        // slower one would undo the other's work. A server that cannot take the lock simply tries again on its next
+        // save : nothing is lost, it is only written a moment later.
+        const saved = await withLock(`doc:save:${room.documentId}`, saveLockMs, ()=> writeRoom(room), "busy");
 
-            // Second layer of the rich-text whitelist : incoming updates were already checked one by one,
-            // this checks the WHOLE document before it is stored. It should never fail. If it does, nothing is written,
-            // so the last good state stays in the database.
-            if(problem){
-                console.log(`Document ${room.documentId} was NOT saved, its content is not valid : ${problem}`);
-                return;
-            }
-
-            await Document.updateOne({_id : room.documentId}, {$set : {
-                yjsState : Buffer.from(encodeState(room.doc)),
-                content : json,
-                ...(room.lastEditorId ? {lastEditedBy : room.lastEditorId} : {})
-            }});
-        }
-        catch(err){
-            room.dirty = true;      // try again with the next save
-            console.log(`Saving document ${room.documentId} failed`, err);
+        if(saved === "busy"){
+            room.dirty = true;
         }
     });
 
     return room.saving;
+}
+
+// Writes the room to MongoDB. Runs while holding the save lock (or alone, when there is no Redis).
+const writeRoom = async (room)=>{
+    try{
+        // What is already stored is merged into our copy FIRST. Merging a CRDT only ever ADDS, so what we write is
+        // everything we know plus everything the database knew : an edit made on another server can never be written
+        // over. The relay origin keeps this from being sent back out as if it were a new change.
+        const stored = await Document.findById(room.documentId).select("+yjsState");
+
+        if(stored?.yjsState?.length){
+            Y.applyUpdate(room.doc, new Uint8Array(stored.yjsState), docRelayOrigin);
+        }
+
+        const json = yDocToJSON(room.doc);
+        const problem = findContentProblem(json);
+
+        // Second layer of the rich-text whitelist : incoming updates were already checked one by one, this checks the
+        // WHOLE document before it is stored. It should never fail. If it does, nothing is written, so the last good
+        // state stays in the database.
+        if(problem){
+            console.log(`Document ${room.documentId} was NOT saved, its content is not valid : ${problem}`);
+            return;
+        }
+
+        await Document.updateOne({_id : room.documentId}, {$set : {
+            yjsState : Buffer.from(encodeState(room.doc)),
+            content : json,
+            ...(room.lastEditorId ? {lastEditedBy : room.lastEditorId} : {})
+        }});
+    }
+    catch(err){
+        room.dirty = true;      // try again with the next save
+        console.log(`Saving document ${room.documentId} failed`, err);
+    }
 }
 
 // Called after every change : make sure a save happens soon, but not on every keystroke
@@ -177,6 +210,7 @@ const destroyRoom = (room)=>{
         return;
     }
     room.destroyed = true;
+    leaveDocRelay(room);        // stop listening for this document's changes
     clearTimeout(room.saveTimer);
     clearTimeout(room.closeTimer);
     room.awareness.destroy();
@@ -237,5 +271,6 @@ export const resetRooms = async ()=>{
     }
     loading.clear();
     resetVersionScheduler();
+    await closeDocRelay();
 }
 

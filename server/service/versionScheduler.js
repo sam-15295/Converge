@@ -2,6 +2,8 @@ import env from "../config/env.js";
 import Document from "../model/documentSchema.js";
 import appEvents from "../events/appEvents.js";
 import {createVersion} from "./versionService.js";
+import {getRedis} from "../config/redis.js";
+import {claimOncePer} from "./redisLock.js";
 
 // WHEN a version of a document is written.
 //
@@ -18,14 +20,23 @@ import {createVersion} from "./versionService.js";
 // The state is read from MONGODB, never from the live room. The room saves itself every two seconds, and a version is
 // written minutes later, so the stored state is the same thing — and this file then needs to know nothing about rooms.
 //
-// Who is credited : everybody who edited since the previous version, collected here. They survive the room being
-// closed and reopened, so a session split over two visits still credits both people.
+// Who is credited : everybody who edited since the previous version. With several servers each one only sees its own
+// people type, so the names are collected in Redis and the whole set is taken by whichever server writes the version.
+// They survive the room being closed and reopened, so a session split over two visits still credits both people.
+//
+// And with several servers, each one has its own timer for the same document : without the claim below they would all
+// write a version of the same session. The claim also IS the gap - the first server to take it writes, and nobody can
+// take it again until it expires.
 
 const quietMs = ()=> env.VERSION_QUIET_SECONDS * 1000;
 const minGapMs = ()=> env.VERSION_MIN_GAP_SECONDS * 1000;
 
 // documentId -> {workspaceId, authors : Set, timer, lastVersionAt}
 const sessions = new Map();
+
+// where the other servers put the names of the people typing, and where the right to write a version is claimed
+const authorsKey = (documentId)=> `version:authors:${documentId}`;
+const claimKey = (documentId)=> `version:written:${documentId}`;
 
 // The live room saves itself on its own rhythm, which is much shorter than the periods here, but "much shorter" is not
 // "always first". So before a version is read from the database, the room is asked to save whatever it still holds.
@@ -68,11 +79,29 @@ const writeVersion = async (documentId)=>{
         return null;
     }
 
-    const authorIds = [...session.authors];
+    // Only ONE server writes the version of a session. The first to claim it wins, and the claim lasts as long as the
+    // gap, so it is the gap as well : nobody can write another version of this document until it expires.
+    if(!(await claimOncePer(claimKey(documentId), minGapMs()))){
+        session.authors.clear();        // somebody else is writing this session; ours are already in the shared set
+        session.lastVersionAt = Date.now();
+        return null;
+    }
+
+    // Everybody who typed, on any server. Read and cleared as ONE step (a transaction), so a name added while we are
+    // reading is either credited here or kept for the next version - never credited twice, never dropped.
+    // (sPop with a count is not used : this client pops a single member and silently throws the rest away.)
+    const redis = getRedis();
+    const taken = redis ? await redis.multi().sMembers(authorsKey(documentId)).del(authorsKey(documentId)).exec().catch(()=> [[]]) : [[]];
+    const shared = Array.isArray(taken?.[0]) ? taken[0] : [];
+    const authorIds = [...new Set([...session.authors, ...shared].filter(Boolean))];
 
     // taken before awaiting : an edit arriving while we save starts the NEXT session instead of being swallowed
     session.authors.clear();
     session.lastVersionAt = Date.now();
+
+    if(authorIds.length === 0){
+        return null;
+    }
 
     try{
         // whatever is still only in memory goes to the database first, so the version is the real current state
@@ -137,6 +166,10 @@ export const noteEdit = ({documentId, workspaceId, userId})=>{
 
     if(userId){
         session.authors.add(String(userId));
+
+        // ... and where the other servers can see it, so whoever writes the version credits everybody
+        getRedis()?.sAdd(authorsKey(documentId), String(userId))
+        .catch((err)=> console.log("Could not share who is editing", err.message));
     }
     planVersion(session, String(documentId), quietMs());
 }
