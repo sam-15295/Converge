@@ -66,7 +66,7 @@ export const sendMessage = async (req, res)=>{
             const updated = await Message.findByIdAndUpdate(
                 parent._id,
                 {$inc : {replyCount : 1}, $max : {lastReplyAt : created.createdAt}},
-                {new : true}
+                {returnDocument : "after"}       // give back the updated message, not the one from before
             );
             updatedParent = await loadAndFormat(updated);
         }

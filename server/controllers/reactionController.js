@@ -46,7 +46,8 @@ const changeReaction = async (req, res, makeUpdate, doneMessage, tidyUp)=>{
         const workspaceId = req.membership.workspaceId;
 
         // looked up inside the workspace of the URL : a message of another workspace is simply "not found"
-        const updated = await Message.findOneAndUpdate({_id : messageId, workspaceId}, makeUpdate(emoji, req.user._id), {new : true});
+        // returnDocument "after" : the answer holds the reactions as they are NOW, including this change
+        const updated = await Message.findOneAndUpdate({_id : messageId, workspaceId}, makeUpdate(emoji, req.user._id), {returnDocument : "after"});
 
         if(!updated){
             return res.status(404).json({
