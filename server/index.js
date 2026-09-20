@@ -3,6 +3,7 @@ import mongoose from "mongoose";
 import app from "./app.js";
 import env from "./config/env.js";
 import connectDB from "./config/database.js";
+import {closeRedis, connectRedis} from "./config/redis.js";
 import createSocketServer, {closeSocketServer} from "./socket/socketServer.js";
 import {attachNotificationListeners} from "./events/notificationListeners.js";
 import {attachActivityListeners} from "./events/activityListeners.js";
@@ -10,6 +11,10 @@ import {attachActivityListeners} from "./events/activityListeners.js";
 const startServer = async ()=>{
     try{
         await connectDB();
+
+        // Redis, when REDIS_URL is set : what several servers use to reach each other. Connected BEFORE the sockets,
+        // because the socket layer asks for it while starting.
+        await connectRedis();
 
         // one HTTP server for both the REST API (Express) and the real-time connections (Socket.IO), on the same port
         const server = http.createServer(app);
@@ -32,6 +37,7 @@ const startServer = async ()=>{
             closeSocketServer(io).then(()=>{
                 server.close(async ()=>{
                     await mongoose.disconnect();
+                    await closeRedis();
                     process.exit(0);
                 });
             });

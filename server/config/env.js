@@ -25,6 +25,12 @@ const envSchema = z.object({
     // notification requests (list, count, mark as read) one person may make in a minute
     NOTIFICATION_RATE_LIMIT_MAX : z.coerce.number().int().positive().default(120),
 
+    // Redis, used when the app runs as several servers at once (see config/redis.js).
+    // Left out : one server, everything in memory, exactly as before.
+    // An empty value means "not set" (the tests use that to be sure they never pick up a developer's own Redis);
+    // a value that is there but wrong still fails loudly.
+    REDIS_URL : z.preprocess((value)=> (value === "" ? undefined : value), z.string().url().optional()),
+
     // version history : how long a document must be quiet before the editing session counts as finished,
     // and the shortest time between two versions of the same document (see service/versionScheduler.js)
     VERSION_QUIET_SECONDS : z.coerce.number().positive().default(120),
